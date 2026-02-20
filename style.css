@@ -663,3 +663,86 @@ header {
     margin: 4px 0 0 0;
     color: var(--lichtbruin);
 }
+
+/* --- Wachtwoord Sectie Styling (Verbeterd) --- */
+.gekozen-plaatjes-vak {
+    min-height: 60px;
+    font-size: 40px;
+    background: white;
+    border-radius: 8px;
+    border: 2px dashed var(--donkergroen);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    width: 220px;
+    margin: 0 auto 15px auto;
+}
+
+.plaatjes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 260px;
+    margin: 0 auto;
+}
+
+.plaatje-knop {
+    font-size: 40px;
+    padding: 15px;
+    background-color: white;
+    border: 2px solid var(--donkergroen);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.plaatje-knop:hover {
+    background-color: var(--lichtgroen);
+    transform: scale(1.05);
+}
+
+.wachtwoorden-lijst {
+    text-align: left;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.wachtwoord-rij {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 18px;
+    color: var(--lichtbruin);
+    transition: background-color 0.2s;
+}
+
+.wachtwoord-rij:hover {
+    background-color: var(--achtergrond);
+}
+
+.wachtwoord-rij span:first-child {
+    font-weight: 700;
+    color: var(--donkergroen);
+    flex: 1;
+}
+
+.wachtwoord-rij span:last-child {
+    font-family: 'Courier New', monospace;
+    background: #eee;
+    padding: 4px 12px;
+    border-radius: 4px;
+    color: var(--oranje);
+    font-weight: bold;
+    min-width: 100px;
+    text-align: center;
+}
