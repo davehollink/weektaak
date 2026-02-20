@@ -462,7 +462,7 @@ function berekenVoortgang() {
     const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                 .filter(t => t.getAttribute('data-groep') === huidigeGroep);
 
-    // --- DOCENT LOGICA (Volledig hersteld) ---
+    // --- DOCENT LOGICA ---
     if (huidigeGebruiker === 'Docent') {
         const overzichtLijst = document.getElementById('overzicht-lijst');
         if (!overzichtLijst) return;
@@ -497,7 +497,6 @@ function berekenVoortgang() {
                 }
             });
             
-            // Controleer dispensers (oefensoftware e.d.)
             document.querySelectorAll(`.kloon-taak[data-is-dispenser-kloon="true"][data-leerling="${leerling}"][data-groep="${huidigeGroep}"]`).forEach(kloon => {
                 let taakNaam = kloon.getAttribute('data-taak-naam');
                 let count = parseInt(kloon.getAttribute('data-aantal') || '0', 10);
@@ -511,7 +510,6 @@ function berekenVoortgang() {
                 afgerondeNamenLijst.push(`${dispenserCounts[naam]}x ${naam}`);
             });
 
-            // Controleer klaartaken
             document.querySelectorAll(`.extra-taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
                 const doelgroep = taak.getAttribute('data-leerling');
                 let isKlaar = false;
@@ -543,11 +541,16 @@ function berekenVoortgang() {
     else {
         let totaal = 0;
         let klaar = 0;
+        let flexibelTotaal = 0; // Telt alleen de zelf in te plannen taken
+        let flexibelKlaar = 0;  // Telt de afgeronde zelf in te plannen taken
         
         alleOriginelen.forEach(origineel => {
             const doelgroep = origineel.getAttribute('data-leerling');
             if (doelgroep === 'Iedereen' || doelgroep === huidigeGebruiker) {
                 totaal++;
+                
+                const isVast = origineel.classList.contains('vaste-taak');
+                if (!isVast) flexibelTotaal++;
 
                 let isKlaar = false;
                 let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
@@ -560,7 +563,10 @@ function berekenVoortgang() {
                     }
                 }
 
-                if (isKlaar) klaar++;
+                if (isKlaar) {
+                    klaar++;
+                    if (!isVast) flexibelKlaar++;
+                }
             }
         });
         
@@ -571,14 +577,23 @@ function berekenVoortgang() {
 
         const klaartakenSlotTekst = document.getElementById('klaartaken-slot-tekst');
 
-        if (percentage === 100 && totaal > 0) {
+        // Check of de klaartaken open mogen (vaste taken genegeerd)
+        let magKlaartakenDoen = false;
+        if (flexibelTotaal > 0 && flexibelKlaar === flexibelTotaal) {
+            magKlaartakenDoen = true;
+        } else if (flexibelTotaal === 0 && totaal > 0) {
+            // Geen flexibele taken, maar wel vaste taken aanwezig
+            magKlaartakenDoen = true;
+        }
+
+        if (magKlaartakenDoen) {
             klaartakenContainer.classList.remove('klaartaken-vergrendeld');
             klaartakenContainer.classList.add('ontgrendeld');
             klaartakenSlotTekst.innerText = "🎉 Kies een leuke extra taak of bedenk er zelf één!";
         } else {
             klaartakenContainer.classList.add('klaartaken-vergrendeld');
             klaartakenContainer.classList.remove('ontgrendeld');
-            klaartakenSlotTekst.innerText = "Rond eerst je weektaak af."; 
+            klaartakenSlotTekst.innerText = "Rond eerst je flexibele taken af."; 
         }
     }
 }
