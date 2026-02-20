@@ -459,43 +459,129 @@ function updateTaakZichtbaarheid() {
 }
 
 function berekenVoortgang() {
-    const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)')).filter(t => t.getAttribute('data-groep') === huidigeGroep);
-    
-    // De logica voor de docent en leerling is hier ingekort voor duidelijkheid (blijft hetzelfde als in je vorige script)
-    // Leerling logica:
-    if (huidigeGebruiker !== 'Docent') {
-        let totaal = 0; let klaar = 0;
+    const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
+                                .filter(t => t.getAttribute('data-groep') === huidigeGroep);
+
+    // --- DOCENT LOGICA (Volledig hersteld) ---
+    if (huidigeGebruiker === 'Docent') {
+        const overzichtLijst = document.getElementById('overzicht-lijst');
+        if (!overzichtLijst) return;
+        overzichtLijst.innerHTML = ''; 
+        
+        actieveLeerlingenLijst.forEach(leerling => {
+            let totaal = 0;
+            let klaar = 0;
+            let afgerondeNamenLijst = [];
+            let dispenserCounts = {}; 
+            
+            alleOriginelen.forEach(origineel => {
+                const doelgroep = origineel.getAttribute('data-leerling');
+                if (doelgroep === 'Iedereen' || doelgroep === leerling) {
+                    totaal++;
+                    
+                    let isKlaar = false;
+                    let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
+                    if (klaarDoor.split(',').includes(leerling)) {
+                        isKlaar = true;
+                    } else {
+                        const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${leerling}"]`);
+                        if (kloon && kloon.classList.contains('klaar')) {
+                            isKlaar = true;
+                        }
+                    }
+
+                    if (isKlaar) {
+                        klaar++;
+                        afgerondeNamenLijst.push(origineel.getAttribute('data-taak-naam'));
+                    }
+                }
+            });
+            
+            // Controleer dispensers (oefensoftware e.d.)
+            document.querySelectorAll(`.kloon-taak[data-is-dispenser-kloon="true"][data-leerling="${leerling}"][data-groep="${huidigeGroep}"]`).forEach(kloon => {
+                let taakNaam = kloon.getAttribute('data-taak-naam');
+                let count = parseInt(kloon.getAttribute('data-aantal') || '0', 10);
+                if (count > 0) {
+                    if (!dispenserCounts[taakNaam]) dispenserCounts[taakNaam] = 0;
+                    dispenserCounts[taakNaam] += count; 
+                }
+            });
+
+            Object.keys(dispenserCounts).forEach(naam => {
+                afgerondeNamenLijst.push(`${dispenserCounts[naam]}x ${naam}`);
+            });
+
+            // Controleer klaartaken
+            document.querySelectorAll(`.extra-taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
+                const doelgroep = taak.getAttribute('data-leerling');
+                let isKlaar = false;
+                if (doelgroep === leerling && taak.classList.contains('klaar')) isKlaar = true;
+                if (doelgroep === 'Iedereen') {
+                    let klaarDoor = taak.getAttribute('data-klaar-door') || '';
+                    if (klaarDoor.split(',').includes(leerling)) isKlaar = true;
+                }
+                if (isKlaar) {
+                    afgerondeNamenLijst.push(taak.getAttribute('data-taak-naam') + ' 🎮');
+                }
+            });
+            
+            let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
+            
+            const rij = document.createElement('div');
+            rij.classList.add('leerling-voortgang-rij');
+            rij.innerHTML = `<span class="leerling-naam-klikbaar"><strong>${leerling} 🔍</strong></span> <span>${klaar} / ${totaal} af (${percentage}%)</span>`;
+            
+            rij.querySelector('.leerling-naam-klikbaar').addEventListener('click', () => {
+                openLeerlingModal(leerling, afgerondeNamenLijst);
+            });
+
+            overzichtLijst.appendChild(rij);
+        });
+        
+    } 
+    // --- LEERLING LOGICA ---
+    else {
+        let totaal = 0;
+        let klaar = 0;
+        
         alleOriginelen.forEach(origineel => {
             const doelgroep = origineel.getAttribute('data-leerling');
             if (doelgroep === 'Iedereen' || doelgroep === huidigeGebruiker) {
                 totaal++;
+
                 let isKlaar = false;
-                if ((origineel.getAttribute('data-klaar-door') || '').split(',').includes(huidigeGebruiker)) isKlaar = true;
-                else {
+                let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
+                if (klaarDoor.split(',').includes(huidigeGebruiker)) {
+                    isKlaar = true;
+                } else {
                     const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${huidigeGebruiker}"]`);
-                    if (kloon && kloon.classList.contains('klaar')) isKlaar = true;
+                    if (kloon && kloon.classList.contains('klaar')) {
+                        isKlaar = true;
+                    }
                 }
+
                 if (isKlaar) klaar++;
             }
         });
         
         let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
+        
         document.getElementById('voortgang-percentage').innerText = `${klaar} van de ${totaal} taken af (${percentage}%)`;
         document.getElementById('voortgang-balk-vulling').style.width = `${percentage}%`;
-        const slotTekst = document.getElementById('klaartaken-slot-tekst');
+
+        const klaartakenSlotTekst = document.getElementById('klaartaken-slot-tekst');
 
         if (percentage === 100 && totaal > 0) {
             klaartakenContainer.classList.remove('klaartaken-vergrendeld');
             klaartakenContainer.classList.add('ontgrendeld');
-            slotTekst.innerText = "🎉 Kies een leuke extra taak of bedenk er zelf één!";
+            klaartakenSlotTekst.innerText = "🎉 Kies een leuke extra taak of bedenk er zelf één!";
         } else {
             klaartakenContainer.classList.add('klaartaken-vergrendeld');
             klaartakenContainer.classList.remove('ontgrendeld');
-            slotTekst.innerText = "Rond eerst je weektaak af."; 
+            klaartakenSlotTekst.innerText = "Rond eerst je weektaak af."; 
         }
     }
 }
-
 function openLeerlingModal(leerling, afgerondeNamenLijst) {
     let takenHtml = afgerondeNamenLijst.length > 0 ? `<ul class="detail-taken-lijst">` + afgerondeNamenLijst.map(n => `<li>${n}</li>`).join('') + `</ul>` : `<p>Nog geen taken afgerond.</p>`;
     let reflectieHtml = '';
