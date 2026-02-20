@@ -1,11 +1,11 @@
-// script.js - De volledige versie inclusief alle functies en Supabase-koppeling
+// script.js - Volledige versie met herstelde dropdown-logica
 
 // --- 1. CONFIGURATIE ---
 const SUPABASE_URL = 'https://hdohxcwwhzblvxlfpked.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhkb2h4Y3d3aHpibHZ4bGZwa2VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTk3OTMsImV4cCI6MjA4NzE3NTc5M30._TZI-zUEK4iZiDiMrCYpx7Kl9shQDSe2vTor8RszSeM';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabase = null;
 
-// --- 2. DATABASE & STATE ---
+// --- 2. DATABASE ---
 const scholenDatabase = {
     'Groep 1/2 donkerblauw': ['Testkind 1', 'Testkind 2'],
     'Groep 1/2 lichtblauw': ['Testkind 3', 'Testkind 4'],
@@ -32,19 +32,20 @@ const scholenDatabase = {
 
 let huidigeGroep = '';
 let huidigeGebruiker = '';
-let actieveLeerlingenLijst = []; 
-let globaleTaakId = 1; 
+let globaleTaakId = 1;
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 
-// --- 3. LOGIN & AUTH ---
+// --- 3. DROP DOWN LOGICA (Eerst laden!) ---
 function updateLoginDropdown() {
     const groepSelect = document.getElementById('kies-groep');
     const wieSelect = document.getElementById('wie-logt-in');
+    if (!groepSelect || !wieSelect) return;
+
     huidigeGroep = groepSelect.value;
-    actieveLeerlingenLijst = scholenDatabase[huidigeGroep] || [];
+    const namen = scholenDatabase[huidigeGroep] || [];
     
     wieSelect.innerHTML = '<option value="Docent">Leerkracht (Beheerder)</option>';
-    actieveLeerlingenLijst.forEach(l => {
+    namen.forEach(l => {
         const opt = document.createElement('option');
         opt.value = l;
         opt.innerText = `Leerling: ${l}`;
@@ -52,9 +53,13 @@ function updateLoginDropdown() {
     });
 }
 
+// --- 4. LOGIN & INITIALISATIE ---
 async function login() {
-    huidigeGebruiker = document.getElementById('wie-logt-in').value;
-    huidigeGroep = document.getElementById('kies-groep').value;
+    const wieSelect = document.getElementById('wie-logt-in');
+    const groepSelect = document.getElementById('kies-groep');
+    
+    huidigeGebruiker = wieSelect.value;
+    huidigeGroep = groepSelect.value;
     
     document.getElementById('ingelogde-gebruiker-tekst').innerText = huidigeGebruiker;
     document.getElementById('ingelogde-groep-tekst').innerText = huidigeGroep;
@@ -63,8 +68,8 @@ async function login() {
     
     if (huidigeGebruiker === 'Docent') {
         document.getElementById('docent-paneel').style.display = 'flex';
-        document.getElementById('docent-overzicht').style.display = 'block';
         document.getElementById('docent-acties').style.display = 'flex';
+        document.getElementById('docent-overzicht').style.display = 'block';
         vulDynamischeCheckboxes();
     } else {
         document.getElementById('voortgang-container').style.display = 'block'; 
@@ -78,23 +83,28 @@ async function login() {
     berekenVoortgang();
 }
 
-// --- 4. DATABASE FUNCTIES ---
+// --- 5. DATA SYNC (SUPABASE) ---
 async function slaVinkjeOp(taak, klaar, aantal = 0, extra = false) {
-    if (huidigeGebruiker === 'Docent') return;
-    await supabase.from('leerling_taken').upsert({
-        leerling_naam: huidigeGebruiker, groep: huidigeGroep, taak_naam: taak,
-        is_klaar: klaar, aantal_geklikt: aantal, is_klaartaak: extra
-    }, { onConflict: 'leerling_naam,taak_naam' });
+    if (!supabase || huidigeGebruiker === 'Docent') return;
+    try {
+        await supabase.from('leerling_taken').upsert({
+            leerling_naam: huidigeGebruiker, groep: huidigeGroep, taak_naam: taak,
+            is_klaar: klaar, aantal_geklikt: aantal, is_klaartaak: extra
+        }, { onConflict: 'leerling_naam,taak_naam' });
+    } catch (e) { console.error("Fout bij opslaan:", e); }
 }
 
 async function slaReflectieOp(dag, type, waarde) {
-    if (huidigeGebruiker === 'Docent') return;
+    if (!supabase || huidigeGebruiker === 'Docent') return;
     let data = { leerling_naam: huidigeGebruiker, groep: huidigeGroep, dag: dag };
     data[type] = waarde;
-    await supabase.from('leerling_reflecties').upsert(data, { onConflict: 'leerling_naam,dag' });
+    try {
+        await supabase.from('leerling_reflecties').upsert(data, { onConflict: 'leerling_naam,dag' });
+    } catch (e) { console.error("Fout bij reflectie opslaan:", e); }
 }
 
 async function synchroniseerData() {
+    if (!supabase) return;
     const { data: taken } = await supabase.from('leerling_taken').select('*').eq('leerling_naam', huidigeGebruiker);
     if (taken) {
         taken.forEach(t => {
@@ -102,7 +112,7 @@ async function synchroniseerData() {
             if (el) {
                 if (t.is_klaar) el.classList.add('klaar');
                 if (t.aantal_geklikt > 0) {
-                    const count = el.querySelector('.teller-waarde strong');
+                    const count = el.querySelector('strong');
                     if (count) count.innerText = t.aantal_geklikt;
                 }
             }
@@ -110,7 +120,7 @@ async function synchroniseerData() {
     }
 }
 
-// --- 5. UI GENERATIE ---
+// --- 6. UI ELEMENTEN ---
 function bouwTaakElement(taakNaam, leerling = 'Iedereen', isExtra = false, isDispenser = false) {
     const el = document.createElement('div');
     el.className = 'taak' + (isExtra ? ' extra-taak' : '') + (isDispenser ? ' dispenser-taak' : '');
@@ -133,26 +143,28 @@ function bouwTaakElement(taakNaam, leerling = 'Iedereen', isExtra = false, isDis
 }
 
 function laadStandaardInhoud() {
-    ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag'].forEach(dag => {
+    const dagen = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag'];
+    dagen.forEach(dag => {
         const kol = document.getElementById(dag);
-        if (kol.children.length <= 1) {
+        if (kol && kol.children.length <= 1) {
             kol.appendChild(bouwTaakElement('Rekenen (basistaak)'));
             kol.appendChild(bouwTaakElement('Spelling (basisles)'));
         }
     });
     const td = document.getElementById('te-doen');
-    if (td.children.length <= 1) {
+    if (td && td.children.length <= 1) {
         td.appendChild(bouwTaakElement('Rekenen peiltaken'));
         td.appendChild(bouwTaakElement('Rekenen 5 eigen taken', 'Iedereen', false, true));
     }
     const kl = document.getElementById('klaartaken-lijst');
-    if (kl.children.length === 0) {
+    if (kl && kl.children.length === 0) {
         ['Minecraft', 'Thema', 'Tekenen'].forEach(t => kl.appendChild(bouwTaakElement(t, 'Iedereen', true)));
     }
 }
 
 function laadReflectieBord() {
     const grid = document.getElementById('reflectie-dagen-grid');
+    if (!grid) return;
     grid.innerHTML = '';
     werkDagen.forEach(dag => {
         const kaart = document.createElement('div');
@@ -184,21 +196,37 @@ function berekenVoortgang() {
         }
     });
     const perc = t === 0 ? 0 : Math.round((k/t)*100);
-    document.getElementById('voortgang-balk-vulling').style.width = perc + '%';
-    document.getElementById('voortgang-percentage').innerText = `${k}/${t} taken af (${perc}%)`;
-    
-    const klCont = document.getElementById('klaartaken-container');
-    const slotTxt = document.getElementById('klaartaken-slot-tekst');
-    if (perc === 100 && t > 0) {
-        klCont.classList.remove('klaartaken-vergrendeld');
-        slotTxt.innerText = "🎉 Veel plezier met de klaartaken!";
-    } else {
-        klCont.classList.add('klaartaken-vergrendeld');
-        slotTxt.innerText = "Rond eerst je weektaak af.";
-    }
+    const vulling = document.getElementById('voortgang-balk-vulling');
+    if (vulling) vulling.style.width = perc + '%';
+    const txt = document.getElementById('voortgang-percentage');
+    if (txt) txt.innerText = `${k}/${t} taken af (${perc}%)`;
 }
 
-// --- 6. SLEEP LOGICA ---
+function vulDynamischeCheckboxes() {
+    const container = document.getElementById('dynamische-checkboxes');
+    if (!container) return;
+    container.innerHTML = '<span>Voor wie?</span><br><label><input type="checkbox" id="check-iedereen" checked> Iedereen</label>';
+    actieveLeerlingenLijst.forEach(l => {
+        container.innerHTML += `<label><input type="checkbox" class="leerling-check" value="${l}"> ${l}</label>`;
+    });
+}
+
+// --- 7. STARTUP ---
+window.onload = () => {
+    // 1. Vul de dropdown direct
+    updateLoginDropdown();
+    document.getElementById('kies-groep').onchange = updateLoginDropdown;
+    document.getElementById('login-knop').onclick = login;
+
+    // 2. Start Supabase rustig op de achtergrond
+    try {
+        if (window.supabase) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+    } catch (e) { console.warn("Supabase start later."); }
+};
+
+// Sleep logica voor de kolommen
 document.querySelectorAll('.kolom').forEach(kol => {
     kol.ondragover = (e) => e.preventDefault();
     kol.ondrop = (e) => {
@@ -210,15 +238,11 @@ document.querySelectorAll('.kolom').forEach(kol => {
             const kloon = item.cloneNode(true);
             kloon.id = 'taak-' + globaleTaakId++;
             kloon.classList.replace('dispenser-taak', 'kloon-taak');
-            kloon.innerHTML += ` <div class="taak-teller"><button class="t-min">-</button><span class="teller-waarde"><strong>0</strong>x</span><button class="t-plus">+</button></div>`;
+            kloon.innerHTML += ` <div class="taak-teller"><button class="t-plus">+</button> <strong>0</strong>x</div>`;
             const val = kloon.querySelector('strong');
             kloon.querySelector('.t-plus').onclick = (ev) => { 
                 ev.stopPropagation(); let n = parseInt(val.innerText) + 1; val.innerText = n; 
                 slaVinkjeOp(item.getAttribute('data-taak-naam'), true, n);
-            };
-            kloon.querySelector('.t-min').onclick = (ev) => { 
-                ev.stopPropagation(); let n = Math.max(0, parseInt(val.innerText) - 1); val.innerText = n; 
-                slaVinkjeOp(item.getAttribute('data-taak-naam'), n > 0, n);
             };
             kol.appendChild(kloon);
         } else {
@@ -226,20 +250,4 @@ document.querySelectorAll('.kolom').forEach(kol => {
         }
         berekenVoortgang();
     };
-});
-
-// --- 7. DOCENT FUNCTIES ---
-function vulDynamischeCheckboxes() {
-    const container = document.getElementById('dynamische-checkboxes');
-    container.innerHTML = '<span>Voor wie?</span><br><label><input type="checkbox" id="check-iedereen" checked> Iedereen</label>';
-    actieveLeerlingenLijst.forEach(l => {
-        container.innerHTML += `<label><input type="checkbox" class="leerling-check" value="${l}"> ${l}</label>`;
-    });
-}
-
-// Initialisatie bij laden
-window.addEventListener('load', () => {
-    updateLoginDropdown();
-    document.getElementById('kies-groep').onchange = updateLoginDropdown;
-    document.getElementById('login-knop').onclick = login;
 });
