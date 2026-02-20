@@ -4,21 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weektaak - IKC Binnenstebuiten</title>
-    
     <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
     <div id="login-scherm">
         <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo">
         <h1>Welkom bij de Weektaak!</h1>
-        <p>Kies eerst je groep en daarna wie er inlogt:</p>
+        <p>Kies je groep en log in:</p>
         
-        <select id="kies-groep" class="login-selectie" style="margin-bottom: 10px;">
+        <select id="kies-groep" class="login-selectie">
             <option value="Groep 1/2 donkerblauw">Groep 1/2 donkerblauw</option>
             <option value="Groep 1/2 lichtblauw">Groep 1/2 lichtblauw</option>
             <option value="Groep 1/2 oranje">Groep 1/2 oranje</option>
@@ -29,7 +26,7 @@
             <option value="Groep 3 roze">Groep 3 roze</option>
             <option value="Groep 4 groen">Groep 4 groen</option>
             <option value="Groep 4 turquoise">Groep 4 turquoise</option>
-            <option value="Groep 5 donkerblauw">Groep 5 donkerblauw</option>
+            <option value="Groep 5 donkerblauw" selected>Groep 5 donkerblauw</option>
             <option value="Groep 5 lichtblauw">Groep 5 lichtblauw</option>
             <option value="Groep 5 roze">Groep 5 roze</option>
             <option value="Groep 6 groen">Groep 6 groen</option>
@@ -41,9 +38,10 @@
             <option value="Groep 8 oranje">Groep 8 oranje</option>
             <option value="Groep 8 roze">Groep 8 roze</option>
         </select>
-        <br>
+        <br><br>
         <select id="wie-logt-in" class="login-selectie">
-            </select>
+            <option value="Docent">Leerkracht (Beheerder)</option>
+        </select>
         <br><br>
         <button id="login-knop">Inloggen met schoolaccount</button>
     </div>
@@ -51,7 +49,7 @@
     <div id="planbord" style="display: none;">
         <header>
             <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo-klein">
-            <h2>Mijn Planning (<span id="ingelogde-gebruiker-tekst"></span> - <span id="ingelogde-groep-tekst"></span>)</h2>
+            <h2>Planning: <span id="ingelogde-gebruiker-tekst"></span> (<span id="ingelogde-groep-tekst"></span>)</h2>
             <button id="logout-knop">Uitloggen</button>
         </header>
 
@@ -62,84 +60,23 @@
             </div>
         </div>
 
-        <div id="klaartaken-container" class="voortgang-container klaartaken-container klaartaken-vergrendeld" style="display: none;">
-            <div class="voortgang-tekst">
-                Klaartaken 🌟 <span id="klaartaken-slot-tekst" class="slot-tekst">Rond eerst je weektaak af.</span>
-            </div>
-            
+        <div id="klaartaken-container" class="voortgang-container klaartaken-vergrendeld" style="display: none;">
+            <div class="voortgang-tekst">Klaartaken 🌟 <span id="klaartaken-slot-tekst">Rond eerst je weektaak af.</span></div>
             <div id="klaartaken-lijst" class="klaartaken-horizontaal"></div>
-            
-            <div class="klaarkaart-invoer">
-                <label for="eigen-klaarkaart">Klaarkaart:</label>
-                <input type="text" id="eigen-klaarkaart" placeholder="Typ hier welke kaart je pakt...">
-                <button id="voeg-eigen-klaartaak-toe">Pak Kaart</button>
-            </div>
         </div>
 
-        <div id="leerling-acties-container" class="leerling-acties-container" style="display: none;">
-            <div id="leerling-prullenbak" class="leerling-prullenbak">
-                🗑️ Foutje? Sleep een blokje hierheen
-            </div>
-        </div>
-
-        <div id="docent-paneel" class="docent-paneel">
-            <div class="invoer-groep">
-                <input type="text" id="nieuwe-taak-input" placeholder="Typ hier een nieuwe (flexibele) taak...">
-                <button id="voeg-taak-toe-knop">Taak Toevoegen ➕</button>
-            </div>
-            
-            <div class="leerling-checkboxes" id="dynamische-checkboxes">
-                </div>
-        </div>
-
-        <div id="docent-acties" class="docent-acties" style="display: none;">
-            <div id="prullenbak" class="actie-blok prullenbak-blok">
-                🗑️ Sleep een flexibele taak hierheen om te wissen
-            </div>
-            <button id="wis-bord-knop" class="actie-blok wis-bord-knop">
-                Hele Bord Wissen 🧹
-            </button>
-        </div>
-        
         <div class="bord-container">
-            <div class="kolom" id="te-doen">
-                <h3>Te Doen 📚</h3>
-            </div>
-            <div class="kolom" id="maandag">
-                <h3>Maandag</h3>
-            </div>
-            <div class="kolom" id="dinsdag">
-                <h3>Dinsdag</h3>
-            </div>
-            <div class="kolom" id="woensdag">
-                <h3>Woensdag</h3>
-            </div>
-            <div class="kolom" id="donderdag">
-                <h3>Donderdag</h3>
-            </div>
-            <div class="kolom" id="vrijdag">
-                <h3>Vrijdag</h3>
-            </div>
+            <div class="kolom" id="te-doen"><h3>Te Doen 📚</h3></div>
+            <div class="kolom" id="maandag"><h3>Maandag</h3></div>
+            <div class="kolom" id="dinsdag"><h3>Dinsdag</h3></div>
+            <div class="kolom" id="woensdag"><h3>Woensdag</h3></div>
+            <div class="kolom" id="donderdag"><h3>Donderdag</h3></div>
+            <div class="kolom" id="vrijdag"><h3>Vrijdag</h3></div>
         </div>
 
         <div id="reflectie-container" class="reflectie-container" style="display: none;">
             <h3 class="reflectie-titel">Terugblik op de week 📝</h3>
-            <p class="reflectie-uitleg">Hoe ging het vandaag? Klik op een smiley en vul in of je nog iets lastig vond of een hulpvraag hebt.</p>
             <div class="reflectie-dagen-grid" id="reflectie-dagen-grid"></div>
-        </div>
-
-        <div id="docent-overzicht" class="docent-overzicht" style="display: none;">
-            <h3>📊 Voortgang van de klas</h3>
-            <p style="font-size: 14px; color: var(--lichtbruin); margin-top: 0; margin-bottom: 15px;">Klik op een leerling om de reflecties en afgeronde taken te bekijken.</p>
-            <div id="overzicht-lijst" class="overzicht-lijst"></div>
-        </div>
-
-    </div>
-
-    <div id="leerling-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <span class="sluit-modal" id="sluit-modal">&times;</span>
-            <div id="modal-leerling-inhoud"></div>
         </div>
     </div>
 
