@@ -16,6 +16,7 @@
         <p>Kies je groep en log in:</p>
         
         <select id="kies-groep" class="login-selectie">
+            <option value="">-- Kies een groep --</option>
             <option value="Groep 1/2 donkerblauw">Groep 1/2 donkerblauw</option>
             <option value="Groep 1/2 lichtblauw">Groep 1/2 lichtblauw</option>
             <option value="Groep 1/2 oranje">Groep 1/2 oranje</option>
@@ -26,7 +27,7 @@
             <option value="Groep 3 roze">Groep 3 roze</option>
             <option value="Groep 4 groen">Groep 4 groen</option>
             <option value="Groep 4 turquoise">Groep 4 turquoise</option>
-            <option value="Groep 5 donkerblauw" selected>Groep 5 donkerblauw</option>
+            <option value="Groep 5 donkerblauw">Groep 5 donkerblauw</option>
             <option value="Groep 5 lichtblauw">Groep 5 lichtblauw</option>
             <option value="Groep 5 roze">Groep 5 roze</option>
             <option value="Groep 6 groen">Groep 6 groen</option>
@@ -40,43 +41,33 @@
         </select>
         <br><br>
         <select id="wie-logt-in" class="login-selectie">
-            <option value="Docent">Leerkracht (Beheerder)</option>
+            <option value="">-- Kies eerst een groep --</option>
         </select>
         <br><br>
-        <button id="login-knop">Inloggen met schoolaccount</button>
+        <button id="login-knop">Inloggen</button>
     </div>
 
     <div id="planbord" style="display: none;">
         <header>
             <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo-klein">
-            <h2>Planning: <span id="ingelogde-gebruiker-tekst"></span> (<span id="ingelogde-groep-tekst"></span>)</h2>
+            <h2>Planning: <span id="ingelogde-gebruiker-tekst"></span></h2>
             <button id="logout-knop">Uitloggen</button>
         </header>
 
-        <div id="voortgang-container" class="voortgang-container" style="display: none;">
-            <div class="voortgang-tekst">Jouw voortgang: <span id="voortgang-percentage">0%</span></div>
+        <div id="voortgang-container" class="voortgang-container">
+            <div class="voortgang-tekst">Voortgang: <span id="voortgang-percentage">0%</span></div>
             <div class="voortgang-balk-achtergrond">
                 <div id="voortgang-balk-vulling" class="voortgang-balk-vulling"></div>
             </div>
         </div>
 
-        <div id="klaartaken-container" class="voortgang-container klaartaken-vergrendeld" style="display: none;">
-            <div class="voortgang-tekst">Klaartaken 🌟 <span id="klaartaken-slot-tekst">Rond eerst je weektaak af.</span></div>
-            <div id="klaartaken-lijst" class="klaartaken-horizontaal"></div>
-        </div>
-
         <div class="bord-container">
-            <div class="kolom" id="te-doen"><h3>Te Doen 📚</h3></div>
+            <div class="kolom" id="te-doen"><h3>Te Doen</h3></div>
             <div class="kolom" id="maandag"><h3>Maandag</h3></div>
             <div class="kolom" id="dinsdag"><h3>Dinsdag</h3></div>
             <div class="kolom" id="woensdag"><h3>Woensdag</h3></div>
             <div class="kolom" id="donderdag"><h3>Donderdag</h3></div>
             <div class="kolom" id="vrijdag"><h3>Vrijdag</h3></div>
-        </div>
-
-        <div id="reflectie-container" class="reflectie-container" style="display: none;">
-            <h3 class="reflectie-titel">Terugblik op de week 📝</h3>
-            <div class="reflectie-dagen-grid" id="reflectie-dagen-grid"></div>
         </div>
     </div>
 
