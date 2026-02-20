@@ -841,3 +841,69 @@ leerlingPrullenbak.addEventListener('drop', function() {
         alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
     }
 });
+// --- WEEKTDOWNLOAD (EXCEL/CSV) ---
+const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
+if(downloadOverzichtKnop) {
+    downloadOverzichtKnop.addEventListener('click', () => {
+        // We maken de kolomkoppen voor het Excel bestand. We gebruiken puntkomma (;) zodat Excel het direct goed in kolommen zet.
+        let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Ma Emotie;Ma Lastig;Ma Hulp;Di Emotie;Di Lastig;Di Hulp;Wo Emotie;Wo Lastig;Wo Hulp;Do Emotie;Do Lastig;Do Hulp;Vr Emotie;Vr Lastig;Vr Hulp\n";
+
+        const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
+                                    .filter(t => t.getAttribute('data-groep') === huidigeGroep);
+
+        actieveLeerlingenLijst.forEach(leerling => {
+            let totaal = 0;
+            let klaar = 0;
+            
+            // Bereken de voortgang voor deze specifieke leerling
+            alleOriginelen.forEach(origineel => {
+                const doelgroep = origineel.getAttribute('data-leerling');
+                if (doelgroep === 'Iedereen' || doelgroep === leerling) {
+                    totaal++;
+                    let isKlaar = false;
+                    let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
+                    if (klaarDoor.split(',').includes(leerling)) {
+                        isKlaar = true;
+                    } else {
+                        const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${leerling}"]`);
+                        if (kloon && kloon.classList.contains('klaar')) isKlaar = true;
+                    }
+                    if (isKlaar) klaar++;
+                }
+            });
+            let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
+
+            // Voeg basisgegevens toe aan de rij
+            let row = [leerling, klaar, totaal, percentage + "%"];
+            
+            // Voeg reflecties toe per dag
+            werkDagen.forEach(dag => {
+                const rData = reflectieData[leerling] && reflectieData[leerling][dag] ? reflectieData[leerling][dag] : {emotie: '', lastig: '', hulp: ''};
+                row.push(escapeCSV(rData.emotie));
+                row.push(escapeCSV(rData.lastig));
+                row.push(escapeCSV(rData.hulp));
+            });
+
+            // Voeg de rij toe aan het totaal
+            csv += row.join(";") + "\n";
+        });
+
+        // Maak het bestand en trigger de download
+        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' }); // \ufeff zorgt ervoor dat Excel speciale tekens (zoals smileys) goed leest
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        let datumVandaag = new Date().toISOString().split('T')[0];
+        link.setAttribute("download", `Weekoverzicht_${huidigeGroep}_${datumVandaag}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+}
+
+// Hulpfunctie om te voorkomen dat enters of leestekens van leerlingen het Excel-bestand breken
+function escapeCSV(str) {
+    if (str === null || str === undefined) return '""';
+    const s = String(str).replace(/"/g, '""'); // Vervang dubbele quotes
+    return `"${s}"`; // Zet tekst altijd tussen quotes
+}

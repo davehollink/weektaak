@@ -147,10 +147,15 @@
         </div>
 
         <div id="docent-overzicht" class="docent-overzicht" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--lichtgroen); padding-bottom: 8px; margin-bottom: 15px;">
-                <h3 style="margin: 0; border: none; padding: 0;">📊 Voortgang van de klas</h3>
-                <button id="bekijk-wachtwoorden-knop" style="background-color: var(--oranje); font-size: 14px; padding: 8px 15px;">Wachtwoorden Klas 👀</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--lichtgroen); padding-bottom: 8px;">
+                <h3 style="margin: 0; border: none;">📊 Voortgang van de klas</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button id="download-overzicht-knop" style="background-color: var(--donkergroen); font-size: 14px;">Overzicht Downloaden 📥</button>
+                    <button id="bekijk-wachtwoorden-knop" style="background-color: var(--oranje); font-size: 14px;">Wachtwoorden Klas 👀</button>
+                </div>
             </div>
+            <div id="overzicht-lijst" style="margin-top: 15px;"></div>
+        </div>
             <p style="font-size: 14px; color: var(--lichtbruin); margin-top: 0; margin-bottom: 15px;">Klik op een leerling om de reflecties en afgeronde taken te bekijken.</p>
             <div id="overzicht-lijst" class="overzicht-lijst"></div>
         </div>
