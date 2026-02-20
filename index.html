@@ -13,10 +13,9 @@
     <div id="login-scherm">
         <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo">
         <h1>Welkom bij de Weektaak!</h1>
-        <p>Kies je groep en log in:</p>
-        
+        <p>Stap 1: Kies je groep</p>
         <select id="kies-groep" class="login-selectie">
-            <option value="">-- Kies een groep --</option>
+            <option value="">-- Maak een keuze --</option>
             <option value="Groep 1/2 donkerblauw">Groep 1/2 donkerblauw</option>
             <option value="Groep 1/2 lichtblauw">Groep 1/2 lichtblauw</option>
             <option value="Groep 1/2 oranje">Groep 1/2 oranje</option>
@@ -39,28 +38,21 @@
             <option value="Groep 8 oranje">Groep 8 oranje</option>
             <option value="Groep 8 roze">Groep 8 roze</option>
         </select>
-        <br><br>
+        
+        <p>Stap 2: Wie ben jij?</p>
         <select id="wie-logt-in" class="login-selectie">
             <option value="">-- Kies eerst een groep --</option>
         </select>
         <br><br>
-        <button id="login-knop">Inloggen</button>
+        <button id="login-knop">Start mijn weektaak</button>
     </div>
 
     <div id="planbord" style="display: none;">
         <header>
             <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo-klein">
-            <h2>Planning: <span id="ingelogde-gebruiker-tekst"></span></h2>
+            <h2>Hoi <span id="ingelogde-gebruiker-tekst"></span>!</h2>
             <button id="logout-knop">Uitloggen</button>
         </header>
-
-        <div id="voortgang-container" class="voortgang-container">
-            <div class="voortgang-tekst">Voortgang: <span id="voortgang-percentage">0%</span></div>
-            <div class="voortgang-balk-achtergrond">
-                <div id="voortgang-balk-vulling" class="voortgang-balk-vulling"></div>
-            </div>
-        </div>
-
         <div class="bord-container">
             <div class="kolom" id="te-doen"><h3>Te Doen</h3></div>
             <div class="kolom" id="maandag"><h3>Maandag</h3></div>
