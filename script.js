@@ -262,14 +262,28 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
 });
 
 // --- Daadwerkelijke Inlog & BORD LADEN ---
-function voerSuccesvolleLoginUit() {
+async function voerSuccesvolleLoginUit() {
+    const isD = (huidigeGebruiker === "Docent");
+    
+    // Zet knoptekst op laden zodat we weten dat hij de data ophaalt
+    if(isD) checkDocentWachtwoordKnop.innerText = "Laden...";
+    else checkLeerlingWachtwoordKnop.innerText = "Laden...";
+
+    // WAARBORG: Haal altijd eerst het nieuwste bord op vóórdat we iets openen!
+    const cloudTaken = await haalDataUitGoogle('taken');
+    cloudTaken.forEach(rij => {
+        if (rij.groep && rij.bord_data) {
+            try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
+        }
+    });
+
     ingelogdeGebruikerTekst.innerText = huidigeGebruiker;
     wachtwoordSectie.style.display = 'none';
     loginScherm.style.display = 'none';
     planbord.style.display = 'block';
     vulDynamischeCheckboxes();
 
-    if (huidigeGebruiker === 'Docent') {
+    if (isD) {
         veranderWachtwoordKnop.style.display = 'none'; 
         docentPaneel.style.display = 'flex';
         docentOverzicht.style.display = 'block';
@@ -296,7 +310,7 @@ function voerSuccesvolleLoginUit() {
         vulReflectieSchermVoorLeerling(); 
     }
 
-    // Leeg alle kolommen voordat we laden
+    // Leeg alle kolommen voordat we inladen
     document.querySelectorAll('.kolom').forEach(k => {
         const h3 = k.querySelector('h3');
         k.innerHTML = '';
@@ -304,16 +318,21 @@ function voerSuccesvolleLoginUit() {
     });
     document.getElementById('klaartaken-lijst').innerHTML = '';
 
+    // Nu is het 100% veilig om in te laden, hij is niet meer te snel!
     if (opgeslagenBorden[huidigeGroep]) {
         laadBordVanafData(opgeslagenBorden[huidigeGroep]);
     } else {
         laadStandaardInhoud();
-        stuurBordNaarGoogle(); // Sla de basis direct op
+        stuurBordNaarGoogle(); // Sla de basis direct op in de verse Database
     }
 
     updateTaakZichtbaarheid();
     updateKlaarWeergave(); 
     berekenVoortgang(); 
+
+    // Zet de knoppen weer terug voor de volgende keer
+    if(isD) checkDocentWachtwoordKnop.innerText = "Inloggen";
+    else checkLeerlingWachtwoordKnop.innerText = "Inloggen";
 }
 
 logoutKnop.addEventListener('click', () => location.reload());
@@ -767,8 +786,12 @@ function voegNieuweTaakToe() {
 }
 
 document.getElementById('wis-bord-knop').addEventListener('click', () => {
-    if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen?")) {
-        document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak):not(.standaard-te-doen)').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); });
+    if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de ingevulde reflecties van deze groep worden dan leeggemaakt voor de nieuwe week!")) {
+        
+        // 1. Flexibele taken wissen
+        document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak):not(.standaard-te-doen)').forEach(t => { 
+            if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); 
+        });
         
         const wisKlaar = (taak) => {
             let klaarLijst = (taak.getAttribute('data-klaar-door') || '').split(',').filter(n => !actieveLeerlingenLijst.includes(n));
@@ -776,15 +799,39 @@ document.getElementById('wis-bord-knop').addEventListener('click', () => {
             if (klaarLijst.length === 0) taak.classList.remove('klaar'); 
         };
 
+        // 2. Vaste taken en klaartaken ont-vinken voor deze groep
         document.querySelectorAll('.standaard-te-doen').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('te-doen').appendChild(t); }});
         document.querySelectorAll('.vaste-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) wisKlaar(t); });
         document.querySelectorAll('.extra-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('klaartaken-lijst').appendChild(t); }});
 
-        document.querySelectorAll('.reflectie-input').forEach(v => v.value = '');
-        document.querySelectorAll('.emotie-knop').forEach(s => s.classList.remove('actief'));
-        actieveLeerlingenLijst.forEach(l => { werkDagen.forEach(d => { reflectieData[l][d] = { emotie: '', lastig: '', hulp: '' }; }); });
+        // 3. Reflecties in de website EN in Google Sheets leegmaken
+        actieveLeerlingenLijst.forEach(leerling => {
+            werkDagen.forEach(dag => {
+                const rData = reflectieData[leerling][dag];
+                // Controleer of de leerling iets had ingevuld, dan wissen we het in Google Sheets
+                if (rData && (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '')) {
+                    reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '' };
+                    
+                    // Stuur de "lege" status naar Google Sheets
+                    stuurDataNaarGoogle({ 
+                        sheet: 'reflecties', 
+                        action: 'updateReflectie', 
+                        row: { 
+                            id: leerling + "_" + dag, 
+                            leerling: leerling, 
+                            dag: dag, 
+                            emotie: '', 
+                            lastig: '', 
+                            hulp: '' 
+                        }
+                    });
+                }
+            });
+        });
         
-        berekenVoortgang(); stuurBordNaarGoogle(); 
+        berekenVoortgang(); 
+        stuurBordNaarGoogle(); 
+        alert("Het bord en de reflecties zijn succesvol leeggemaakt voor de nieuwe week!");
     }
 });
 
