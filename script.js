@@ -22,7 +22,7 @@ const wachtwoordWelkom = document.getElementById('wachtwoord-welkom');
 const docentWachtwoordSectie = document.getElementById('docent-wachtwoord-sectie');
 const leerlingWachtwoordSectie = document.getElementById('leerling-wachtwoord-sectie');
 const docentWachtwoordInput = document.getElementById('docent-wachtwoord-input');
-const checkDocentWachtwoordKnop = document.getElementById('check-docent-wachtwoord');
+const checkDocentWachtwoordKnop = document.getElementById('checkDocentWachtwoord');
 
 const leerlingWachtwoordInput = document.getElementById('leerling-wachtwoord-input');
 const checkLeerlingWachtwoordKnop = document.getElementById('check-leerling-wachtwoord');
@@ -61,7 +61,7 @@ const scholenDatabase = {
     'Groep 7 paars': ['Mattia Agus', 'Mila Blaauw', 'Rens Eestermans', 'Seth de Feber', 'Jens Flohil', 'Sam Janssen', 'Sam Kuster', 'Stijn Meijer', 'Giulia Oostenrijk', 'James Spruitenburg', 'Leo Vastert', 'Dylan Willemsen', 'Benjamin Woeltjes', 'Cas Zeller', 'Jill Klaassen', 'Siem van Mullem', 'Nicole Tovar Velasquez', 'Pim van Reem', 'Thomas Engels', 'Lola Evers'],
     'Groep 7 turquoise': ['Liliya Aartse Tuijn', 'Evi Arends', 'Fay Bouwmeister', 'Joe Derksen', 'Niki van Dongen', 'Emma van Eekeren', 'Finn Eelvelt', 'Jada Goossens', 'Guusje Hageraats', 'Valerie Jolink', 'Maeson Menke', 'Isa Nijs', 'Denise Orelio', 'Lucas Peters', 'Stijn Postma', 'Tijn Stienissen', 'Tim Visser', 'Joris Vleeming', 'Jasmijn van Wachtendonk', 'Roan Zwart', 'Milan Zweers', 'Noah van den Hoff', 'Omar Titi'],
     'Groep 8 geel': ['Mayla Bakker', 'Finn van de Belt', 'Jolie Benders', 'Liz Beumer', 'Jaylee de Boer', 'Mirthe Creemers', 'Féline Degen', 'Jack Eskes', 'Fenne Lentjes', 'Miles Lina', 'Kyona Lindeman', 'Matvey Maranov', 'Lucas Orelio', 'Timon Schmitz', 'Yannick Jacobs', 'Noor van Wely', 'Pleun Gerver', 'Sarah Kersten', 'Juul Zweerink', 'Mirthe Gerritsen', 'Jayben Vahlkamp'],
-    'Groep 8 oranje': ['Louise Bergen', 'Tibbe Broekhuis', 'Tess Delsink', 'Kai Everdij', 'Jula Evers', 'Anne van Elk', 'Jasmijn Kok', 'Thalesia Koenen', 'Elli Kroon', 'Siem Lentjes', 'Jayda Lindeman', 'Luuk Megens', 'Dante van Rossum', 'Jake Schuring', 'Sepp Struijker Boudier', 'Bram van Steenoven', 'Mert Pasaoglu', 'Teun Peeters', 'Dex Schuil', 'Marly Ramsoedh', 'Nikki Zwart', 'Jolie van der Kreeft'],
+    'Groep 8 oranje': ['Louise Bergen', 'Tibbe Broekhuis', 'Tess Delsink', 'Kai Everdij', 'Jula Evers', 'Anne van Elk', 'Jasmijn Kok', 'Thalesia Koenen', 'Elli Kroon', 'Siem Lentjes', 'Jayda Lindeman', 'Luuk Megens', 'Dante van Rossum', 'Jake Schuring', 'Sepp Struijker Boudier', 'Bram van Steenoven', 'Mert Pasaoglu', 'Teun Peeters', 'Dex Schuil', 'Marly Ramsoedh', 'Nikki Zwart', 'Jolie van der Kreeft', 'Cas Esmeijer', 'Ivy Le'],
     'Groep 8 roze': ['Amber Beekman', 'Nine Benders', 'Ties van den Berg', 'Allison Mae Bosveld', 'Jaap Willem Hoogenhout', 'Jackie van den Oever', 'Maile Korstanje', 'Esmee van der Kreeft', 'Jasper Guijt', 'Summer Liu', 'Skyler Lucassen', 'Lola Mourelle Fernandez', 'Sophie Neijenhuis', 'Alissa Peelen', 'Rosa Walvius', 'Aiden Vaanholt', 'Senn van der Winkel', 'Vanity Hofs', 'Jelle Kersten', 'Bent Teunissen', 'Zonne Triemstra']
 };
 
@@ -74,7 +74,7 @@ let globaleTaakId = 1;
 const reflectieData = {};
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
-let opgeslagenBorden = {}; // Hier bewaren we de ingeladen borden per groep
+let opgeslagenBorden = {};
 
 // --- Google Sheets Functies ---
 async function haalDataUitGoogle(sheetNaam) {
@@ -235,10 +235,12 @@ terugNaarNaamKnop.addEventListener('click', () => {
     inlogKeuzeSectie.style.display = 'block';
 });
 
-checkDocentWachtwoordKnop.addEventListener('click', () => {
-    if (docentWachtwoordInput.value === DOCENT_WACHTWOORD) voerSuccesvolleLoginUit();
-    else foutmeldingLogin.style.display = 'block';
-});
+if(checkDocentWachtwoordKnop) {
+    checkDocentWachtwoordKnop.addEventListener('click', () => {
+        if (docentWachtwoordInput.value === DOCENT_WACHTWOORD) voerSuccesvolleLoginUit();
+        else foutmeldingLogin.style.display = 'block';
+    });
+}
 
 checkLeerlingWachtwoordKnop.addEventListener('click', () => {
     if (leerlingWachtwoordInput.value === wachtwoordenDatabase[huidigeGebruiker]) voerSuccesvolleLoginUit();
@@ -266,8 +268,8 @@ async function voerSuccesvolleLoginUit() {
     const isD = (huidigeGebruiker === "Docent");
     
     // Zet knoptekst op laden zodat we weten dat hij de data ophaalt
-    if(isD) checkDocentWachtwoordKnop.innerText = "Laden...";
-    else checkLeerlingWachtwoordKnop.innerText = "Laden...";
+    if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Laden...";
+    else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Laden...";
 
     // WAARBORG: Haal altijd eerst het nieuwste bord op vóórdat we iets openen!
     const cloudTaken = await haalDataUitGoogle('taken');
@@ -331,8 +333,8 @@ async function voerSuccesvolleLoginUit() {
     berekenVoortgang(); 
 
     // Zet de knoppen weer terug voor de volgende keer
-    if(isD) checkDocentWachtwoordKnop.innerText = "Inloggen";
-    else checkLeerlingWachtwoordKnop.innerText = "Inloggen";
+    if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Inloggen";
+    else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Inloggen";
 }
 
 logoutKnop.addEventListener('click', () => location.reload());
@@ -601,7 +603,6 @@ function berekenVoortgang() {
         if (flexibelTotaal > 0 && flexibelKlaar === flexibelTotaal) {
             magKlaartakenDoen = true;
         } else if (flexibelTotaal === 0 && totaal > 0) {
-            // Geen flexibele taken, maar wel vaste taken aanwezig
             magKlaartakenDoen = true;
         }
 
@@ -616,6 +617,7 @@ function berekenVoortgang() {
         }
     }
 }
+
 function openLeerlingModal(leerling, afgerondeNamenLijst) {
     let takenHtml = afgerondeNamenLijst.length > 0 ? `<ul class="detail-taken-lijst">` + afgerondeNamenLijst.map(n => `<li>${n}</li>`).join('') + `</ul>` : `<p>Nog geen taken afgerond.</p>`;
     let reflectieHtml = '';
@@ -785,9 +787,15 @@ function voegNieuweTaakToe() {
     }
 }
 
-document.getElementById('wis-bord-knop').addEventListener('click', () => {
+document.getElementById('wis-bord-knop').addEventListener('click', async () => {
     if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de ingevulde reflecties van deze groep worden dan leeggemaakt voor de nieuwe week!")) {
         
+        // Verander de knop tijdelijk zodat de leerkracht weet dat hij bezig is
+        const wisKnop = document.getElementById('wis-bord-knop');
+        wisKnop.innerText = "Bezig met wissen... ⏳";
+        wisKnop.style.opacity = "0.7";
+        wisKnop.style.pointerEvents = "none";
+
         // 1. Flexibele taken wissen
         document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak):not(.standaard-te-doen)').forEach(t => { 
             if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); 
@@ -804,33 +812,30 @@ document.getElementById('wis-bord-knop').addEventListener('click', () => {
         document.querySelectorAll('.vaste-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) wisKlaar(t); });
         document.querySelectorAll('.extra-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('klaartaken-lijst').appendChild(t); }});
 
-        // 3. Reflecties in de website EN in Google Sheets leegmaken
-        actieveLeerlingenLijst.forEach(leerling => {
-            werkDagen.forEach(dag => {
+        // 3. Reflecties in de website EN in Google Sheets leegmaken (Stap voor stap, zonder Google te overbelasten)
+        for (const leerling of actieveLeerlingenLijst) {
+            for (const dag of werkDagen) {
                 const rData = reflectieData[leerling][dag];
-                // Controleer of de leerling iets had ingevuld, dan wissen we het in Google Sheets
                 if (rData && (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '')) {
                     reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '' };
                     
-                    // Stuur de "lege" status naar Google Sheets
-                    stuurDataNaarGoogle({ 
+                    await stuurDataNaarGoogle({ 
                         sheet: 'reflecties', 
                         action: 'updateReflectie', 
-                        row: { 
-                            id: leerling + "_" + dag, 
-                            leerling: leerling, 
-                            dag: dag, 
-                            emotie: '', 
-                            lastig: '', 
-                            hulp: '' 
-                        }
+                        row: { id: leerling + "_" + dag, leerling: leerling, dag: dag, emotie: '', lastig: '', hulp: '' }
                     });
                 }
-            });
-        });
+            }
+        }
         
         berekenVoortgang(); 
         stuurBordNaarGoogle(); 
+        
+        // Herstel de knop
+        wisKnop.innerText = "Hele Bord Wissen 🧹";
+        wisKnop.style.opacity = "1";
+        wisKnop.style.pointerEvents = "auto";
+
         alert("Het bord en de reflecties zijn succesvol leeggemaakt voor de nieuwe week!");
     }
 });
@@ -903,11 +908,11 @@ leerlingPrullenbak.addEventListener('drop', function() {
         alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
     }
 });
+
 // --- WEEKTDOWNLOAD (EXCEL/CSV) ---
 const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
 if(downloadOverzichtKnop) {
     downloadOverzichtKnop.addEventListener('click', () => {
-        // We maken de kolomkoppen voor het Excel bestand. We gebruiken puntkomma (;) zodat Excel het direct goed in kolommen zet.
         let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Ma Emotie;Ma Lastig;Ma Hulp;Di Emotie;Di Lastig;Di Hulp;Wo Emotie;Wo Lastig;Wo Hulp;Do Emotie;Do Lastig;Do Hulp;Vr Emotie;Vr Lastig;Vr Hulp\n";
 
         const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
@@ -917,7 +922,6 @@ if(downloadOverzichtKnop) {
             let totaal = 0;
             let klaar = 0;
             
-            // Bereken de voortgang voor deze specifieke leerling
             alleOriginelen.forEach(origineel => {
                 const doelgroep = origineel.getAttribute('data-leerling');
                 if (doelgroep === 'Iedereen' || doelgroep === leerling) {
@@ -935,10 +939,8 @@ if(downloadOverzichtKnop) {
             });
             let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
 
-            // Voeg basisgegevens toe aan de rij
             let row = [leerling, klaar, totaal, percentage + "%"];
             
-            // Voeg reflecties toe per dag
             werkDagen.forEach(dag => {
                 const rData = reflectieData[leerling] && reflectieData[leerling][dag] ? reflectieData[leerling][dag] : {emotie: '', lastig: '', hulp: ''};
                 row.push(escapeCSV(rData.emotie));
@@ -946,12 +948,10 @@ if(downloadOverzichtKnop) {
                 row.push(escapeCSV(rData.hulp));
             });
 
-            // Voeg de rij toe aan het totaal
             csv += row.join(";") + "\n";
         });
 
-        // Maak het bestand en trigger de download
-        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' }); // \ufeff zorgt ervoor dat Excel speciale tekens (zoals smileys) goed leest
+        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' }); 
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
@@ -963,9 +963,8 @@ if(downloadOverzichtKnop) {
     });
 }
 
-// Hulpfunctie om te voorkomen dat enters of leestekens van leerlingen het Excel-bestand breken
 function escapeCSV(str) {
     if (str === null || str === undefined) return '""';
-    const s = String(str).replace(/"/g, '""'); // Vervang dubbele quotes
-    return `"${s}"`; // Zet tekst altijd tussen quotes
+    const s = String(str).replace(/"/g, '""'); 
+    return `"${s}"`; 
 }
