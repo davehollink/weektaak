@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (Volledige Google Sheets Sync met slimme opslag!)
+// script.js - De motor van onze weektaak (Touchscreen & Safe-Save Update!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -76,7 +76,7 @@ const reflectieData = {};
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
 let opgeslagenBorden = {};
-let saveTimeout = null; // Timer voor het vertraagd opslaan (debounce)
+let saveTimeout = null; 
 
 // --- Google Sheets Functies ---
 async function haalDataUitGoogle(sheetNaam) {
@@ -95,20 +95,18 @@ async function stuurDataNaarGoogle(payload) {
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
+            keepalive: true, // Belangrijk: zorgt dat de taak opgeslagen wordt, ook als de docent direct wegklikt
             body: JSON.stringify(payload)
         });
     } catch (error) {}
 }
 
-// BORD OPSLAAN (Met slimme vertraging tegen vastlopen van Google Sheets)
-function stuurBordNaarGoogle() {
+// BORD OPSLAAN (Met Direct Save Optie)
+function stuurBordNaarGoogle(direct = false) {
     if (!huidigeGroep) return;
-    
-    // Wis de vorige timer als de leerling wéér een blokje sleept
     clearTimeout(saveTimeout);
     
-    // Wacht 1 seconde na de laatste actie, en sla dan pas op
-    saveTimeout = setTimeout(() => {
+    const doeOpslaan = () => {
         const takenData = [];
         document.querySelectorAll(`.taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
             let attrObj = {};
@@ -131,7 +129,13 @@ function stuurBordNaarGoogle() {
                 bord_data: JSON.stringify(takenData)
             }
         });
-    }, 1000); 
+    };
+
+    if (direct) {
+        doeOpslaan(); 
+    } else {
+        saveTimeout = setTimeout(doeOpslaan, 1000); 
+    }
 }
 
 // --- Initialisatie Lokaal ---
@@ -170,9 +174,7 @@ async function syncMetGoogle() {
     const cloudTaken = await haalDataUitGoogle('taken');
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
-            try {
-                opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data);
-            } catch(e){}
+            try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
         }
     });
 }
@@ -278,11 +280,9 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
 async function voerSuccesvolleLoginUit() {
     const isD = (huidigeGebruiker === "Docent");
     
-    // Zet knoptekst op laden zodat we weten dat hij de data ophaalt
     if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Laden...";
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Laden...";
 
-    // WAARBORG: Haal altijd eerst het nieuwste bord op vóórdat we iets openen!
     const cloudTaken = await haalDataUitGoogle('taken');
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
@@ -323,7 +323,6 @@ async function voerSuccesvolleLoginUit() {
         vulReflectieSchermVoorLeerling(); 
     }
 
-    // Leeg alle kolommen voordat we inladen
     document.querySelectorAll('.kolom').forEach(k => {
         const h3 = k.querySelector('h3');
         k.innerHTML = '';
@@ -331,24 +330,28 @@ async function voerSuccesvolleLoginUit() {
     });
     document.getElementById('klaartaken-lijst').innerHTML = '';
 
-    // Nu is het 100% veilig om in te laden, hij is niet meer te snel!
     if (opgeslagenBorden[huidigeGroep]) {
         laadBordVanafData(opgeslagenBorden[huidigeGroep]);
     } else {
         laadStandaardInhoud();
-        stuurBordNaarGoogle(); // Sla de basis direct op in de verse Database
+        stuurBordNaarGoogle(true); 
     }
 
     updateTaakZichtbaarheid();
     updateKlaarWeergave(); 
     berekenVoortgang(); 
 
-    // Zet de knoppen weer terug voor de volgende keer
     if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Inloggen";
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Inloggen";
 }
 
-logoutKnop.addEventListener('click', () => location.reload());
+logoutKnop.addEventListener('click', () => {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        stuurBordNaarGoogle(true); 
+    }
+    location.reload();
+});
 
 function laadBordVanafData(takenData) {
     let maxId = 0;
@@ -366,7 +369,7 @@ function laadBordVanafData(takenData) {
         const doelKolom = document.getElementById(data.kolom);
         if(doelKolom) {
             doelKolom.appendChild(taak);
-            koppelTaakEvents(taak); // Maak de taak weer klikbaar en sleepbaar
+            koppelTaakEvents(taak); 
         }
     });
     globaleTaakId = maxId + 1;
@@ -379,7 +382,8 @@ bekijkWachtwoordenKnop.addEventListener('click', () => {
     actieveLeerlingenLijst.forEach(leerling => {
         wachtwoordHtml += `<div class="wachtwoord-rij"><span>${leerling}</span><span style="font-weight: normal; font-family: monospace;">${wachtwoordenDatabase[leerling]}</span></div>`;
     });
-    modalInhoud.innerHTML = `<h4>Wachtwoorden - ${huidigeGroep}</h4>${wachtwoordHtml}</div>`;
+    wachtwoordHtml += `</div>`;
+    modalInhoud.innerHTML = `<h4>Wachtwoorden - ${huidigeGroep}</h4>${wachtwoordHtml}`;
     leerlingModal.style.display = 'flex';
 });
 
@@ -494,7 +498,6 @@ function berekenVoortgang() {
     const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                 .filter(t => t.getAttribute('data-groep') === huidigeGroep);
 
-    // --- DOCENT LOGICA ---
     if (huidigeGebruiker === 'Docent') {
         const overzichtLijst = document.getElementById('overzicht-lijst');
         if (!overzichtLijst) return;
@@ -568,9 +571,7 @@ function berekenVoortgang() {
             overzichtLijst.appendChild(rij);
         });
         
-    } 
-    // --- LEERLING LOGICA ---
-    else {
+    } else {
         let totaal = 0;
         let klaar = 0;
         let flexibelTotaal = 0; 
@@ -645,14 +646,160 @@ function openLeerlingModal(leerling, afgerondeNamenLijst) {
 window.addEventListener('click', (e) => { if (e.target === leerlingModal) leerlingModal.style.display = 'none'; if (e.target === wachtwoordModal) wachtwoordModal.style.display = 'none'; });
 sluitModalKnop.addEventListener('click', () => { leerlingModal.style.display = 'none'; });
 
+
+// === TOUCH EN DRAG LOGICA (CHROMBOOKS/IPADS) ===
+let activeTouchTaak = null;
+let touchKloon = null;
+
+function handleTouchStart(e) {
+    if (this.getAttribute('draggable') === 'false' || e.target.closest('.teller-knop') || e.target.tagName.toLowerCase() === 'button') return;
+    activeTouchTaak = this;
+    gesleepteTaak = this;
+    setTimeout(() => this.style.opacity = '0.5', 0);
+
+    const touch = e.touches[0];
+    touchKloon = this.cloneNode(true);
+    touchKloon.style.position = 'fixed';
+    touchKloon.style.zIndex = '9999';
+    touchKloon.style.pointerEvents = 'none'; // Erg belangrijk: de vinger moet er 'doorheen' kunnen klikken
+    touchKloon.style.width = this.offsetWidth + 'px';
+    touchKloon.style.left = (touch.clientX - (this.offsetWidth/2)) + 'px';
+    touchKloon.style.top = (touch.clientY - (this.offsetHeight/2)) + 'px';
+    touchKloon.style.opacity = '0.8';
+    document.body.appendChild(touchKloon);
+}
+
+function handleTouchMove(e) {
+    if (!activeTouchTaak) return;
+    e.preventDefault(); // Voorkomt dat het scherm gaat scrollen tijdens het slepen!
+    const touch = e.touches[0];
+    if (touchKloon) {
+        touchKloon.style.left = (touch.clientX - (activeTouchTaak.offsetWidth/2)) + 'px';
+        touchKloon.style.top = (touch.clientY - (activeTouchTaak.offsetHeight/2)) + 'px';
+    }
+}
+
+function handleTouchEnd(e) {
+    if (!activeTouchTaak) return;
+    const touch = e.changedTouches[0];
+    activeTouchTaak.style.opacity = '1';
+
+    if (touchKloon) {
+        touchKloon.remove();
+        touchKloon = null;
+    }
+
+    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (dropTarget) {
+        const kolom = dropTarget.closest('.kolom');
+        const pDocent = dropTarget.closest('#prullenbak');
+        const pLeerling = dropTarget.closest('#leerling-prullenbak');
+
+        if (kolom) verwerkDropActie(kolom);
+        else if (pDocent) verwerkDocentPrullenbakDrop();
+        else if (pLeerling) verwerkLeerlingPrullenbakDrop();
+    }
+
+    activeTouchTaak = null;
+    gesleepteTaak = null;
+}
+
+function verwerkDropActie(kolom) {
+    if (!gesleepteTaak) return;
+    if (gesleepteTaak.classList.contains('dispenser-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
+        const kloon = gesleepteTaak.cloneNode(true);
+        kloon.id = 'taak-' + globaleTaakId++;
+        kloon.classList.remove('dispenser-taak'); kloon.classList.add('kloon-taak'); 
+        kloon.setAttribute('data-is-dispenser-kloon', 'true'); kloon.setAttribute('data-aantal', '0'); kloon.setAttribute('data-groep', huidigeGroep); kloon.style.opacity = '1'; 
+        if (huidigeGebruiker !== 'Docent') kloon.setAttribute('data-leerling', huidigeGebruiker);
+        kloon.setAttribute('data-klaar-door', ''); kloon.classList.remove('klaar');
+        const tellerDiv = document.createElement('div'); tellerDiv.classList.add('taak-teller');
+        tellerDiv.innerHTML = `<button class="teller-knop min">-</button><span class="teller-waarde"><strong>0</strong> x gemaakt</span><button class="teller-knop plus">+</button>`;
+        kloon.appendChild(tellerDiv);
+        koppelTaakEvents(kloon);
+        kolom.appendChild(kloon); updateTaakZichtbaarheid(); stuurBordNaarGoogle();
+    } 
+    else if (huidigeGebruiker !== 'Docent' && gesleepteTaak.getAttribute('data-leerling') === 'Iedereen' && !gesleepteTaak.classList.contains('vaste-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
+        const kloon = gesleepteTaak.cloneNode(true);
+        kloon.id = 'taak-' + globaleTaakId++; kloon.classList.add('kloon-taak'); kloon.setAttribute('data-kloon-van', gesleepteTaak.id); kloon.setAttribute('data-leerling', huidigeGebruiker); kloon.setAttribute('data-groep', huidigeGroep); kloon.style.opacity = '1'; kloon.setAttribute('data-klaar-door', ''); kloon.classList.remove('klaar');
+        koppelTaakEvents(kloon);
+        kolom.appendChild(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); stuurBordNaarGoogle();
+    } 
+    else {
+        kolom.appendChild(gesleepteTaak); updateTaakZichtbaarheid(); berekenVoortgang(); stuurBordNaarGoogle();
+    }
+}
+
+function verwerkDocentPrullenbakDrop() {
+    if (gesleepteTaak) { gesleepteTaak.remove(); berekenVoortgang(); stuurBordNaarGoogle(true); }
+}
+
+function verwerkLeerlingPrullenbakDrop() {
+    if (gesleepteTaak) {
+        if (gesleepteTaak.classList.contains('vaste-taak') || gesleepteTaak.classList.contains('dispenser-taak')) return alert("Let op: Deze taak mag je niet wissen!");
+        if (gesleepteTaak.classList.contains('extra-taak')) {
+            let klaarLijst = (gesleepteTaak.getAttribute('data-klaar-door') || '').split(',').filter(n => n !== huidigeGebruiker);
+            gesleepteTaak.setAttribute('data-klaar-door', klaarLijst.join(',')); gesleepteTaak.classList.remove('klaar');
+            document.getElementById('klaartaken-lijst').appendChild(gesleepteTaak); berekenVoortgang(); stuurBordNaarGoogle(); return;
+        }
+        if (gesleepteTaak.classList.contains('kloon-taak')) { gesleepteTaak.remove(); updateTaakZichtbaarheid(); berekenVoortgang(); stuurBordNaarGoogle(true); return; }
+        alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
+    }
+}
+
+let gesleepteTaak = null;
+
+function maakTaakSleepbaar(taak) {
+    taak.addEventListener('dragstart', function(e) {
+        if (taak.getAttribute('draggable') === 'false') return; 
+        gesleepteTaak = taak; setTimeout(() => taak.style.opacity = '0.5', 0); 
+    });
+    taak.addEventListener('dragend', function() {
+        setTimeout(() => {
+            taak.style.opacity = (taak.classList.contains('extra-taak') && taak.getAttribute('draggable') === 'false') ? '0.5' : '1';
+            gesleepteTaak = null;
+        }, 0);
+    });
+}
+
+document.querySelectorAll('.kolom').forEach(kolom => {
+    kolom.addEventListener('dragover', (e) => { e.preventDefault(); kolom.classList.add('drag-over'); });
+    kolom.addEventListener('dragleave', () => kolom.classList.remove('drag-over'));
+    kolom.addEventListener('drop', function() {
+        kolom.classList.remove('drag-over'); 
+        verwerkDropActie(kolom);
+    });
+});
+
+prullenbak.addEventListener('dragover', (e) => { e.preventDefault(); prullenbak.classList.add('drag-over'); });
+prullenbak.addEventListener('dragleave', () => prullenbak.classList.remove('drag-over'));
+prullenbak.addEventListener('drop', function() {
+    prullenbak.classList.remove('drag-over'); 
+    verwerkDocentPrullenbakDrop();
+});
+
+leerlingPrullenbak.addEventListener('dragover', (e) => { e.preventDefault(); leerlingPrullenbak.classList.add('drag-over'); });
+leerlingPrullenbak.addEventListener('dragleave', () => leerlingPrullenbak.classList.remove('drag-over'));
+leerlingPrullenbak.addEventListener('drop', function() {
+    leerlingPrullenbak.classList.remove('drag-over'); 
+    verwerkLeerlingPrullenbakDrop();
+});
+
 // --- Taken Bouwen & Gebeurtenissen (Centraal) ---
 function koppelTaakEvents(taak) {
-    maakTaakSleepbaar(taak);
+    // 1. Oude HTML5 Drag
+    maakTaakSleepbaar(taak); 
 
+    // 2. Nieuwe Touch Drag (Voor Chromebooks/Pads)
+    taak.addEventListener('touchstart', handleTouchStart, {passive: false});
+    taak.addEventListener('touchmove', handleTouchMove, {passive: false});
+    taak.addEventListener('touchend', handleTouchEnd);
+
+    // 3. Klik acties (Afvinken / tellers)
     if (!taak.classList.contains('dispenser-taak')) {
         taak.onclick = function(e) {
             if (huidigeGebruiker === 'Docent') return;
-            if (e.target.classList.contains('teller-knop')) return; 
+            if (e.target.closest('.teller-knop')) return; 
             let klaarLijst = (taak.getAttribute('data-klaar-door') || '').split(',').filter(n => n);
             if (klaarLijst.includes(huidigeGebruiker)) {
                 klaarLijst = klaarLijst.filter(n => n !== huidigeGebruiker);
@@ -760,7 +907,7 @@ document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', ()
     if(invoerVeld.value.trim() !== '') {
         document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(invoerVeld.value.trim(), huidigeGebruiker, true, false, huidigeGroep, 'leerling'));
         invoerVeld.value = ''; 
-        stuurBordNaarGoogle(); // Opslaan
+        stuurBordNaarGoogle(true); // DIRECT Opslaan!
     }
 });
 
@@ -793,20 +940,18 @@ function voegNieuweTaakToe() {
 
         document.getElementById('nieuwe-taak-input').value = ''; 
         updateTaakZichtbaarheid(); berekenVoortgang(); 
-        stuurBordNaarGoogle(); // Opslaan
+        stuurBordNaarGoogle(true); // DIRECT Opslaan!
     }
 }
 
 document.getElementById('wis-bord-knop').addEventListener('click', async () => {
     if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de ingevulde reflecties van deze groep worden dan leeggemaakt voor de nieuwe week!")) {
         
-        // Verander de knop tijdelijk zodat de leerkracht weet dat hij bezig is
         const wisKnop = document.getElementById('wis-bord-knop');
         wisKnop.innerText = "Bezig met wissen... ⏳";
         wisKnop.style.opacity = "0.7";
         wisKnop.style.pointerEvents = "none";
 
-        // 1. Flexibele taken wissen
         document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak):not(.standaard-te-doen)').forEach(t => { 
             if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); 
         });
@@ -817,18 +962,15 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
             if (klaarLijst.length === 0) taak.classList.remove('klaar'); 
         };
 
-        // 2. Vaste taken en klaartaken ont-vinken voor deze groep
         document.querySelectorAll('.standaard-te-doen').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('te-doen').appendChild(t); }});
         document.querySelectorAll('.vaste-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) wisKlaar(t); });
         document.querySelectorAll('.extra-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('klaartaken-lijst').appendChild(t); }});
 
-        // 3. Reflecties in de website EN in Google Sheets leegmaken (Stap voor stap, zonder Google te overbelasten)
         for (const leerling of actieveLeerlingenLijst) {
             for (const dag of werkDagen) {
                 const rData = reflectieData[leerling][dag];
                 if (rData && (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '')) {
                     reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '' };
-                    
                     await stuurDataNaarGoogle({ 
                         sheet: 'reflecties', 
                         action: 'updateReflectie', 
@@ -839,83 +981,13 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         }
         
         berekenVoortgang(); 
-        stuurBordNaarGoogle(); 
+        stuurBordNaarGoogle(true); 
         
-        // Herstel de knop
         wisKnop.innerText = "Hele Bord Wissen 🧹";
         wisKnop.style.opacity = "1";
         wisKnop.style.pointerEvents = "auto";
 
         alert("Het bord en de reflecties zijn succesvol leeggemaakt voor de nieuwe week!");
-    }
-});
-
-let gesleepteTaak = null;
-function maakTaakSleepbaar(taak) {
-    taak.addEventListener('dragstart', function() {
-        if (taak.getAttribute('draggable') === 'false') return; 
-        gesleepteTaak = taak; setTimeout(() => taak.style.opacity = '0.5', 0); 
-    });
-    taak.addEventListener('dragend', function() {
-        setTimeout(() => {
-            taak.style.opacity = (taak.classList.contains('extra-taak') && taak.getAttribute('draggable') === 'false') ? '0.5' : '1';
-            gesleepteTaak = null;
-        }, 0);
-    });
-}
-
-document.querySelectorAll('.kolom').forEach(kolom => {
-    kolom.addEventListener('dragover', (e) => { e.preventDefault(); kolom.classList.add('drag-over'); });
-    kolom.addEventListener('dragleave', () => kolom.classList.remove('drag-over'));
-    kolom.addEventListener('drop', function() {
-        kolom.classList.remove('drag-over'); 
-        if (gesleepteTaak) {
-            if (gesleepteTaak.classList.contains('dispenser-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
-                const kloon = gesleepteTaak.cloneNode(true);
-                kloon.id = 'taak-' + globaleTaakId++;
-                kloon.classList.remove('dispenser-taak'); kloon.classList.add('kloon-taak'); 
-                kloon.setAttribute('data-is-dispenser-kloon', 'true'); kloon.setAttribute('data-aantal', '0'); kloon.setAttribute('data-groep', huidigeGroep); kloon.style.opacity = '1'; 
-                if (huidigeGebruiker !== 'Docent') kloon.setAttribute('data-leerling', huidigeGebruiker);
-                kloon.setAttribute('data-klaar-door', ''); kloon.classList.remove('klaar');
-                const tellerDiv = document.createElement('div'); tellerDiv.classList.add('taak-teller');
-                tellerDiv.innerHTML = `<button class="teller-knop min">-</button><span class="teller-waarde"><strong>0</strong> x gemaakt</span><button class="teller-knop plus">+</button>`;
-                kloon.appendChild(tellerDiv);
-                koppelTaakEvents(kloon);
-                kolom.appendChild(kloon); updateTaakZichtbaarheid(); stuurBordNaarGoogle();
-            } 
-            else if (huidigeGebruiker !== 'Docent' && gesleepteTaak.getAttribute('data-leerling') === 'Iedereen' && !gesleepteTaak.classList.contains('vaste-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
-                const kloon = gesleepteTaak.cloneNode(true);
-                kloon.id = 'taak-' + globaleTaakId++; kloon.classList.add('kloon-taak'); kloon.setAttribute('data-kloon-van', gesleepteTaak.id); kloon.setAttribute('data-leerling', huidigeGebruiker); kloon.setAttribute('data-groep', huidigeGroep); kloon.style.opacity = '1'; kloon.setAttribute('data-klaar-door', ''); kloon.classList.remove('klaar');
-                koppelTaakEvents(kloon);
-                kolom.appendChild(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); stuurBordNaarGoogle();
-            } 
-            else {
-                kolom.appendChild(gesleepteTaak); updateTaakZichtbaarheid(); berekenVoortgang(); stuurBordNaarGoogle();
-            }
-        }
-    });
-});
-
-prullenbak.addEventListener('dragover', (e) => { e.preventDefault(); prullenbak.classList.add('drag-over'); });
-prullenbak.addEventListener('dragleave', () => prullenbak.classList.remove('drag-over'));
-prullenbak.addEventListener('drop', function() {
-    prullenbak.classList.remove('drag-over'); 
-    if (gesleepteTaak) { gesleepteTaak.remove(); berekenVoortgang(); stuurBordNaarGoogle(); }
-});
-
-leerlingPrullenbak.addEventListener('dragover', (e) => { e.preventDefault(); leerlingPrullenbak.classList.add('drag-over'); });
-leerlingPrullenbak.addEventListener('dragleave', () => leerlingPrullenbak.classList.remove('drag-over'));
-leerlingPrullenbak.addEventListener('drop', function() {
-    leerlingPrullenbak.classList.remove('drag-over'); 
-    if (gesleepteTaak) {
-        if (gesleepteTaak.classList.contains('vaste-taak') || gesleepteTaak.classList.contains('dispenser-taak')) return alert("Let op: Deze taak mag je niet wissen!");
-        if (gesleepteTaak.classList.contains('extra-taak')) {
-            let klaarLijst = (gesleepteTaak.getAttribute('data-klaar-door') || '').split(',').filter(n => n !== huidigeGebruiker);
-            gesleepteTaak.setAttribute('data-klaar-door', klaarLijst.join(',')); gesleepteTaak.classList.remove('klaar');
-            document.getElementById('klaartaken-lijst').appendChild(gesleepteTaak); berekenVoortgang(); stuurBordNaarGoogle(); return;
-        }
-        if (gesleepteTaak.classList.contains('kloon-taak')) { gesleepteTaak.remove(); updateTaakZichtbaarheid(); berekenVoortgang(); stuurBordNaarGoogle(); return; }
-        alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
     }
 });
 
