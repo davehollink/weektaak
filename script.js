@@ -22,7 +22,7 @@ const wachtwoordWelkom = document.getElementById('wachtwoord-welkom');
 const docentWachtwoordSectie = document.getElementById('docent-wachtwoord-sectie');
 const leerlingWachtwoordSectie = document.getElementById('leerling-wachtwoord-sectie');
 const docentWachtwoordInput = document.getElementById('docent-wachtwoord-input');
-const checkDocentWachtwoordKnop = document.getElementById('checkDocentWachtwoord');
+const checkDocentWachtwoordKnop = document.getElementById('check-docent-wachtwoord'); // Hier is de fout hersteld!
 
 const leerlingWachtwoordInput = document.getElementById('leerling-wachtwoord-input');
 const checkLeerlingWachtwoordKnop = document.getElementById('check-leerling-wachtwoord');
@@ -65,6 +65,7 @@ const scholenDatabase = {
     'Groep 8 roze': ['Amber Beekman', 'Nine Benders', 'Ties van den Berg', 'Allison Mae Bosveld', 'Jaap Willem Hoogenhout', 'Jackie van den Oever', 'Maile Korstanje', 'Esmee van der Kreeft', 'Jasper Guijt', 'Summer Liu', 'Skyler Lucassen', 'Lola Mourelle Fernandez', 'Sophie Neijenhuis', 'Alissa Peelen', 'Rosa Walvius', 'Aiden Vaanholt', 'Senn van der Winkel', 'Vanity Hofs', 'Jelle Kersten', 'Bent Teunissen', 'Zonne Triemstra']
 };
 
+const alleLeerlingen = Object.values(scholenDatabase).flat();
 let huidigeGroep = '';
 let huidigeGebruiker = '';
 let actieveLeerlingenLijst = []; 
@@ -242,10 +243,12 @@ if(checkDocentWachtwoordKnop) {
     });
 }
 
-checkLeerlingWachtwoordKnop.addEventListener('click', () => {
-    if (leerlingWachtwoordInput.value === wachtwoordenDatabase[huidigeGebruiker]) voerSuccesvolleLoginUit();
-    else foutmeldingLogin.style.display = 'block';
-});
+if(checkLeerlingWachtwoordKnop) {
+    checkLeerlingWachtwoordKnop.addEventListener('click', () => {
+        if (leerlingWachtwoordInput.value === wachtwoordenDatabase[huidigeGebruiker]) voerSuccesvolleLoginUit();
+        else foutmeldingLogin.style.display = 'block';
+    });
+}
 
 // Wachtwoord Wijzigen
 veranderWachtwoordKnop.addEventListener('click', () => {
@@ -562,8 +565,8 @@ function berekenVoortgang() {
     else {
         let totaal = 0;
         let klaar = 0;
-        let flexibelTotaal = 0; // Telt alleen de zelf in te plannen taken
-        let flexibelKlaar = 0;  // Telt de afgeronde zelf in te plannen taken
+        let flexibelTotaal = 0; 
+        let flexibelKlaar = 0;  
         
         alleOriginelen.forEach(origineel => {
             const doelgroep = origineel.getAttribute('data-leerling');
@@ -598,7 +601,6 @@ function berekenVoortgang() {
 
         const klaartakenSlotTekst = document.getElementById('klaartaken-slot-tekst');
 
-        // Check of de klaartaken open mogen (vaste taken genegeerd)
         let magKlaartakenDoen = false;
         if (flexibelTotaal > 0 && flexibelKlaar === flexibelTotaal) {
             magKlaartakenDoen = true;
@@ -642,7 +644,7 @@ function koppelTaakEvents(taak) {
     if (!taak.classList.contains('dispenser-taak')) {
         taak.onclick = function(e) {
             if (huidigeGebruiker === 'Docent') return;
-            if (e.target.classList.contains('teller-knop')) return; // Zorgt dat de knopjes blijven werken
+            if (e.target.classList.contains('teller-knop')) return; 
             let klaarLijst = (taak.getAttribute('data-klaar-door') || '').split(',').filter(n => n);
             if (klaarLijst.includes(huidigeGebruiker)) {
                 klaarLijst = klaarLijst.filter(n => n !== huidigeGebruiker);
@@ -653,7 +655,7 @@ function koppelTaakEvents(taak) {
             }
             taak.setAttribute('data-klaar-door', klaarLijst.join(','));
             berekenVoortgang();
-            stuurBordNaarGoogle(); // DIRECT OPSLAAN
+            stuurBordNaarGoogle(); 
         };
     }
 
