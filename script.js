@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (WATERDICHTE OPSLAG UPDATE!)
+// script.js - De motor van onze weektaak (UNIEKE PROFIELEN & BLADWIJZERS UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -75,16 +75,34 @@ let globaleTaakId = 1;
 const reflectieData = {};
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
-let opgeslagenBorden = {};
+let opgeslagenBorden = {}; // Slaat nu unieke profielen op!
 
-// --- Google Sheets Functies (Nieuwe Veilige Methode) ---
+// --- URL Bladwijzer Functionaliteit (Lees de link uit) ---
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlGroep = urlParams.get('groep');
+    const urlNaam = urlParams.get('naam');
+
+    if (urlGroep && scholenDatabase[urlGroep]) {
+        kiesGroepSelect.value = urlGroep;
+        kiesGroepSelect.dispatchEvent(new Event('change')); // Vult de namenlijst in
+        
+        if (urlNaam) {
+            setTimeout(() => { 
+                wieLogtInSelect.value = urlNaam; 
+            }, 50);
+        }
+    }
+});
+
+// --- Google Sheets Functies ---
 async function haalDataUitGoogle(sheetNaam) {
     try {
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?sheet=${sheetNaam}`);
-        if (!response.ok) return null; // Geeft direct een fout door als de server hapert
+        if (!response.ok) return null; 
         return await response.json();
     } catch (error) {
-        return null; // Bij een netwerkfout sturen we 'null' in plaats van een lege array!
+        return null; 
     }
 }
 
@@ -100,9 +118,9 @@ async function stuurDataNaarGoogle(payload) {
     }
 }
 
-// BORD OPSLAAN (Alleen nog maar opgeroepen bij knopdruk)
+// BORD OPSLAAN (Nu met unieke kluisjes per kind!)
 async function stuurBordNaarGoogle() {
-    if (!huidigeGroep) return;
+    if (!huidigeGroep || !huidigeGebruiker) return;
     
     const takenData = [];
     document.querySelectorAll(`.taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
@@ -119,10 +137,13 @@ async function stuurBordNaarGoogle() {
         });
     });
     
+    // HET GEHEIM: Sla op onder Groep + Naam (bijv. Groep 8 oranje_Dante)
+    let opslagSleutel = huidigeGebruiker === "Docent" ? huidigeGroep + "_Docent" : huidigeGroep + "_" + huidigeGebruiker;
+
     await stuurDataNaarGoogle({
         sheet: 'taken',
         row: {
-            groep: huidigeGroep,
+            groep: opslagSleutel, 
             bord_data: JSON.stringify(takenData)
         }
     });
@@ -147,7 +168,7 @@ function initLokaal() {
 }
 initLokaal();
 
-// --- Sync met Google Sheets (op de achtergrond) ---
+// --- Sync met Google Sheets ---
 async function syncMetGoogle() {
     const cloudWachtwoorden = await haalDataUitGoogle('wachtwoorden');
     if(cloudWachtwoorden) {
@@ -165,14 +186,7 @@ async function syncMetGoogle() {
         });
     }
 
-    const cloudTaken = await haalDataUitGoogle('taken');
-    if(cloudTaken) {
-        cloudTaken.forEach(rij => {
-            if (rij.groep && rij.bord_data) {
-                try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
-            }
-        });
-    }
+    // Laat de data vooralsnog leeg, we vullen dit in bij het inloggen!
 }
 syncMetGoogle(); 
 
@@ -271,23 +285,29 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
     }
 });
 
-// --- Daadwerkelijke Inlog & BORD LADEN ---
+// --- Daadwerkelijke Inlog & BORD LADEN (Slim samenvoegen!) ---
 async function voerSuccesvolleLoginUit() {
     const isD = (huidigeGebruiker === "Docent");
     
     if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Laden...";
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Laden...";
 
+    // 1. Maak de adresbalk netjes zodat het een bladwijzer kan worden!
+    const url = new URL(window.location);
+    url.searchParams.set('groep', huidigeGroep);
+    url.searchParams.set('naam', huidigeGebruiker);
+    window.history.pushState({}, '', url);
+
+    // 2. Haal actuele data op
     const cloudTaken = await haalDataUitGoogle('taken');
-    
-    // --- DE NIEUWE VEILIGHEIDSCHECK ---
     if (cloudTaken === null) {
-        alert("⚠️ Let op: Kan op dit moment geen verbinding maken met de database. Om te voorkomen dat je planning wordt gewist, hebben we het inloggen geannuleerd. Controleer je internet en probeer het zo opnieuw!");
+        alert("⚠️ Kan geen verbinding maken met de database. Probeer het opnieuw!");
         if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Inloggen";
         else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Inloggen";
-        return; // Breekt direct af! We laden geen leeg bord in!
+        return; 
     }
 
+    opgeslagenBorden = {}; // Reset actuele geheugen
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
             try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
@@ -299,9 +319,18 @@ async function voerSuccesvolleLoginUit() {
     loginScherm.style.display = 'none';
     planbord.style.display = 'block';
     if(handmatigOpslaanKnop) handmatigOpslaanKnop.style.display = 'inline-block';
-    
     vulDynamischeCheckboxes();
 
+    document.querySelectorAll('.kolom').forEach(k => {
+        const h3 = k.querySelector('h3');
+        k.innerHTML = '';
+        k.appendChild(h3);
+    });
+    document.getElementById('klaartaken-lijst').innerHTML = '';
+
+    // 3. Kies het juiste bord om te laden
+    let docentData = opgeslagenBorden[huidigeGroep + "_Docent"] || opgeslagenBorden[huidigeGroep] || [];
+    
     if (isD) {
         veranderWachtwoordKnop.style.display = 'none'; 
         docentPaneel.style.display = 'flex';
@@ -315,6 +344,10 @@ async function voerSuccesvolleLoginUit() {
         document.getElementById('klaartaken-slot-tekst').innerText = "Beheer hier de extra taken voor de klas."; 
         leerlingPrullenbakContainer.style.display = 'none';
         reflectieContainer.style.display = 'none'; 
+        
+        if (docentData.length > 0) laadBordVanafData(docentData);
+        else laadStandaardInhoud();
+
     } else {
         veranderWachtwoordKnop.style.display = 'inline-block'; 
         docentPaneel.style.display = 'none';
@@ -327,21 +360,37 @@ async function voerSuccesvolleLoginUit() {
         reflectieContainer.style.display = 'block'; 
         laadReflectieBord(); 
         vulReflectieSchermVoorLeerling(); 
-    }
 
-    document.querySelectorAll('.kolom').forEach(k => {
-        const h3 = k.querySelector('h3');
-        k.innerHTML = '';
-        k.appendChild(h3);
-    });
-    document.getElementById('klaartaken-lijst').innerHTML = '';
+        let studentData = opgeslagenBorden[huidigeGroep + "_" + huidigeGebruiker];
 
-    // --- Geen stiekeme auto-save meer! ---
-    if (opgeslagenBorden[huidigeGroep] && opgeslagenBorden[huidigeGroep].length > 0) {
-        laadBordVanafData(opgeslagenBorden[huidigeGroep]);
-    } else {
-        laadStandaardInhoud();
-        // De fatale `stuurBordNaarGoogle(true)` die een lege opstart wegschreef is hier gewist!
+        if (!studentData || studentData.length === 0) {
+            // Kind logt voor de eerste keer in: Krijgt de basis van de docent
+            laadBordVanafData(docentData);
+        } else {
+            // Kind is al bezig geweest: Laad zijn/haar kluisje
+            laadBordVanafData(studentData);
+            
+            // Controle 1: Heeft de docent net een nieuwe basistaak toegevoegd? Zet deze er dan bij!
+            const docentTaakIds = [];
+            docentData.forEach(dTaak => {
+                docentTaakIds.push(dTaak.attrs.id);
+                if (!document.getElementById(dTaak.attrs.id)) {
+                    const nieuweTaak = document.createElement('div');
+                    for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
+                    if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
+                    nieuweTaak.innerHTML = dTaak.html;
+                    const doelKolom = document.getElementById(dTaak.kolom);
+                    if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
+                }
+            });
+
+            // Controle 2: Heeft docent een basistaak gewist? Haal hem dan ook weg bij het kind.
+            document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
+                if (taak.getAttribute('data-maker') === 'docent') {
+                    if (!docentTaakIds.includes(taak.id)) taak.remove();
+                }
+            });
+        }
     }
 
     updateTaakZichtbaarheid();
@@ -352,9 +401,8 @@ async function voerSuccesvolleLoginUit() {
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Inloggen";
 }
 
-// SLIMME EN VEILIGE UITLOG KNOP
 logoutKnop.addEventListener('click', () => {
-    // We doen geen auto-save meer op de achtergrond. Wat er staat is puur wat handmatig is opgeslagen.
+    // Alleen nog puur herladen. Niets overschrijven!
     location.reload();
 });
 
@@ -499,6 +547,7 @@ function updateTaakZichtbaarheid() {
     });
 }
 
+// --- NIEUWE SLIMME BEREKENING (Kijkt in de kluisjes!) ---
 function berekenVoortgang() {
     const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                 .filter(t => t.getAttribute('data-groep') === huidigeGroep);
@@ -512,22 +561,23 @@ function berekenVoortgang() {
             let totaal = 0;
             let klaar = 0;
             let afgerondeNamenLijst = [];
-            let dispenserCounts = {}; 
+            
+            // Pak het persoonlijke opgeslagen bord van de leerling uit het geheugen!
+            let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
             
             alleOriginelen.forEach(origineel => {
                 const doelgroep = origineel.getAttribute('data-leerling');
                 if (doelgroep === 'Iedereen' || doelgroep === leerling) {
                     totaal++;
-                    
                     let isKlaar = false;
-                    let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
-                    if (klaarDoor.split(',').includes(leerling)) {
+
+                    // Zoek in HUN bord of het is afgevinkt of dat er een afgevinkte kloon is
+                    const sTaak = sBord.find(t => t.attrs && t.attrs.id === origineel.id);
+                    if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].includes(leerling)) {
                         isKlaar = true;
                     } else {
-                        const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${leerling}"]`);
-                        if (kloon && kloon.classList.contains('klaar')) {
-                            isKlaar = true;
-                        }
+                        const sKloon = sBord.find(t => t.attrs && t.attrs['data-kloon-van'] === origineel.id && t.attrs['class'] && t.attrs['class'].includes('klaar'));
+                        if (sKloon) isKlaar = true;
                     }
 
                     if (isKlaar) {
@@ -537,29 +587,12 @@ function berekenVoortgang() {
                 }
             });
             
-            document.querySelectorAll(`.kloon-taak[data-is-dispenser-kloon="true"][data-leerling="${leerling}"][data-groep="${huidigeGroep}"]`).forEach(kloon => {
-                let taakNaam = kloon.getAttribute('data-taak-naam');
-                let count = parseInt(kloon.getAttribute('data-aantal') || '0', 10);
-                if (count > 0) {
-                    if (!dispenserCounts[taakNaam]) dispenserCounts[taakNaam] = 0;
-                    dispenserCounts[taakNaam] += count; 
+            sBord.forEach(t => {
+                if (t.attrs && t.attrs['data-is-dispenser-kloon'] === 'true' && parseInt(t.attrs['data-aantal']||'0') > 0) {
+                    afgerondeNamenLijst.push(`${t.attrs['data-aantal']}x ${t.attrs['data-taak-naam']}`);
                 }
-            });
-
-            Object.keys(dispenserCounts).forEach(naam => {
-                afgerondeNamenLijst.push(`${dispenserCounts[naam]}x ${naam}`);
-            });
-
-            document.querySelectorAll(`.extra-taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
-                const doelgroep = taak.getAttribute('data-leerling');
-                let isKlaar = false;
-                if (doelgroep === leerling && taak.classList.contains('klaar')) isKlaar = true;
-                if (doelgroep === 'Iedereen') {
-                    let klaarDoor = taak.getAttribute('data-klaar-door') || '';
-                    if (klaarDoor.split(',').includes(leerling)) isKlaar = true;
-                }
-                if (isKlaar) {
-                    afgerondeNamenLijst.push(taak.getAttribute('data-taak-naam') + ' 🎮');
+                if (t.attrs && t.attrs['class'] && t.attrs['class'].includes('extra-taak') && t.attrs['class'].includes('klaar')) {
+                    afgerondeNamenLijst.push(t.attrs['data-taak-naam'] + ' 🎮');
                 }
             });
             
@@ -577,6 +610,7 @@ function berekenVoortgang() {
         });
         
     } else {
+        // Leerling logica (kijkt gewoon naar eigen bord)
         let totaal = 0;
         let klaar = 0;
         let flexibelTotaal = 0; 
@@ -586,19 +620,15 @@ function berekenVoortgang() {
             const doelgroep = origineel.getAttribute('data-leerling');
             if (doelgroep === 'Iedereen' || doelgroep === huidigeGebruiker) {
                 totaal++;
-                
                 const isVast = origineel.classList.contains('vaste-taak');
                 if (!isVast) flexibelTotaal++;
 
                 let isKlaar = false;
                 let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
-                if (klaarDoor.split(',').includes(huidigeGebruiker)) {
-                    isKlaar = true;
-                } else {
+                if (klaarDoor.split(',').includes(huidigeGebruiker)) isKlaar = true;
+                else {
                     const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${huidigeGebruiker}"]`);
-                    if (kloon && kloon.classList.contains('klaar')) {
-                        isKlaar = true;
-                    }
+                    if (kloon && kloon.classList.contains('klaar')) isKlaar = true;
                 }
 
                 if (isKlaar) {
@@ -650,7 +680,6 @@ function openLeerlingModal(leerling, afgerondeNamenLijst) {
 
 window.addEventListener('click', (e) => { if (e.target === leerlingModal) leerlingModal.style.display = 'none'; if (e.target === wachtwoordModal) wachtwoordModal.style.display = 'none'; });
 sluitModalKnop.addEventListener('click', () => { leerlingModal.style.display = 'none'; });
-
 
 // === TOUCH EN DRAG LOGICA (CHROMBOOKS/IPADS) ===
 let activeTouchTaak = null;
@@ -788,7 +817,7 @@ leerlingPrullenbak.addEventListener('drop', function() {
     verwerkLeerlingPrullenbakDrop();
 });
 
-// --- Taken Bouwen & Gebeurtenissen (Centraal) ---
+// --- Taken Bouwen & Gebeurtenissen ---
 function koppelTaakEvents(taak) {
     maakTaakSleepbaar(taak); 
 
@@ -901,12 +930,11 @@ function laadStandaardInhoud() {
     }
 }
 
-document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', async () => {
+document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', () => {
     const invoerVeld = document.getElementById('eigen-klaarkaart');
     if(invoerVeld.value.trim() !== '') {
         document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(invoerVeld.value.trim(), huidigeGebruiker, true, false, huidigeGroep, 'leerling'));
         invoerVeld.value = ''; 
-        await stuurBordNaarGoogle(); // Direct veilig opslaan bij knopgebruik
     }
 });
 
@@ -914,7 +942,7 @@ document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', as
 document.getElementById('voeg-taak-toe-knop').addEventListener('click', voegNieuweTaakToe);
 document.getElementById('nieuwe-taak-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') voegNieuweTaakToe(); });
 
-async function voegNieuweTaakToe() {
+function voegNieuweTaakToe() {
     const nieuweTaakTekst = document.getElementById('nieuwe-taak-input').value.trim(); 
     const taakType = document.getElementById('taak-type-select').value;
     let taakKolomId = taakType === 'klaartaak' ? 'klaartaken-lijst' : document.getElementById('taak-kolom-select').value;
@@ -939,15 +967,15 @@ async function voegNieuweTaakToe() {
 
         document.getElementById('nieuwe-taak-input').value = ''; 
         updateTaakZichtbaarheid(); berekenVoortgang(); 
-        await stuurBordNaarGoogle(); // Direct veilig opslaan bij toevoegen
     }
 }
 
+// SLIM SCHOONMAKEN: Wist nu ook de kluisjes van de leerlingen!
 document.getElementById('wis-bord-knop').addEventListener('click', async () => {
-    if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de ingevulde reflecties van deze groep worden dan leeggemaakt voor de nieuwe week!")) {
+    if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de kluisjes en ingevulde reflecties van deze groep worden dan leeggemaakt!")) {
         
         const wisKnop = document.getElementById('wis-bord-knop');
-        wisKnop.innerText = "Bezig met wissen... ⏳";
+        wisKnop.innerText = "Bezig met wissen... Even geduld! ⏳";
         wisKnop.style.opacity = "0.7";
         wisKnop.style.pointerEvents = "none";
 
@@ -965,20 +993,23 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         document.querySelectorAll('.vaste-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) wisKlaar(t); });
         document.querySelectorAll('.extra-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('klaartaken-lijst').appendChild(t); }});
 
-        for (const leerling of actieveLeerlingenLijst) {
+        for (let i = 0; i < actieveLeerlingenLijst.length; i++) {
+            const leerling = actieveLeerlingenLijst[i];
+            wisKnop.innerText = `Schoonmaken... ${i+1}/${actieveLeerlingenLijst.length} ⏳`;
+
             for (const dag of werkDagen) {
                 const rData = reflectieData[leerling][dag];
                 if (rData && (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '')) {
                     reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '' };
-                    await stuurDataNaarGoogle({ 
-                        sheet: 'reflecties', 
-                        action: 'updateReflectie', 
-                        row: { id: leerling + "_" + dag, leerling: leerling, dag: dag, emotie: '', lastig: '', hulp: '' }
-                    });
+                    await stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: leerling + "_" + dag, leerling: leerling, dag: dag, emotie: '', lastig: '', hulp: '' }});
                 }
             }
+            
+            // Gooi het opslag-kluisje van deze leerling leeg in de database
+            await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: huidigeGroep + "_" + leerling, bord_data: "[]" }});
         }
         
+        wisKnop.innerText = "Basis opslaan... ⏳";
         berekenVoortgang(); 
         await stuurBordNaarGoogle(); 
         
@@ -986,7 +1017,7 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         wisKnop.style.opacity = "1";
         wisKnop.style.pointerEvents = "auto";
 
-        alert("Het bord en de reflecties zijn succesvol leeggemaakt voor de nieuwe week!");
+        alert("Klaar voor de nieuwe week! Alles is netjes leeggemaakt.");
     }
 });
 
@@ -1008,31 +1039,34 @@ if(handmatigOpslaanKnop) {
     });
 }
 
-// --- WEEKTDOWNLOAD (EXCEL/CSV) ---
+// --- WEEKTDOWNLOAD (Aangepast voor kluisjes-data) ---
 const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
 if(downloadOverzichtKnop) {
     downloadOverzichtKnop.addEventListener('click', () => {
         let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Ma Emotie;Ma Lastig;Ma Hulp;Di Emotie;Di Lastig;Di Hulp;Wo Emotie;Wo Lastig;Wo Hulp;Do Emotie;Do Lastig;Do Hulp;Vr Emotie;Vr Lastig;Vr Hulp\n";
 
-        const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
+        const baseTasks = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                     .filter(t => t.getAttribute('data-groep') === huidigeGroep);
 
         actieveLeerlingenLijst.forEach(leerling => {
             let totaal = 0;
             let klaar = 0;
+            let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
             
-            alleOriginelen.forEach(origineel => {
+            baseTasks.forEach(origineel => {
                 const doelgroep = origineel.getAttribute('data-leerling');
                 if (doelgroep === 'Iedereen' || doelgroep === leerling) {
                     totaal++;
                     let isKlaar = false;
-                    let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
-                    if (klaarDoor.split(',').includes(leerling)) {
+
+                    const sTaak = sBord.find(t => t.attrs && t.attrs.id === origineel.id);
+                    if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].includes(leerling)) {
                         isKlaar = true;
                     } else {
-                        const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${leerling}"]`);
-                        if (kloon && kloon.classList.contains('klaar')) isKlaar = true;
+                        const sKloon = sBord.find(t => t.attrs && t.attrs['data-kloon-van'] === origineel.id && t.attrs['class'].includes('klaar'));
+                        if (sKloon) isKlaar = true;
                     }
+
                     if (isKlaar) klaar++;
                 }
             });
