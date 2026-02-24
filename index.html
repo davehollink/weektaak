@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weektaak - IKC Binnenstebuiten</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="login-scherm">
-        <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo" style="width: 120px; margin-bottom: 20px;">
-        <h2>Welkom bij de Weektaak!</h2>
+        <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo">
+        <h1>Welkom bij de Weektaak!</h1>
         
         <div id="inlog-keuze-sectie">
-            <select id="kies-groep">
-                <option value="">-- Kies je groep --</option>
+            <p>Stap 1: Kies je groep en naam</p>
+            <select id="kies-groep" class="login-selectie" style="margin-bottom: 25px;">
+                <option value="">-- Kies een groep --</option>
                 <option value="Groep 5 donkerblauw">Groep 5 donkerblauw</option>
                 <option value="Groep 5 lichtblauw">Groep 5 lichtblauw</option>
                 <option value="Groep 5 roze">Groep 5 roze</option>
@@ -27,131 +30,152 @@
                 <option value="Groep 8 oranje">Groep 8 oranje</option>
                 <option value="Groep 8 roze">Groep 8 roze</option>
             </select>
-            <select id="wie-logt-in">
+            <br>
+            <select id="wie-logt-in" class="login-selectie">
                 <option value="">-- Kies eerst een groep --</option>
             </select>
-            <button id="naar-wachtwoord-knop">Verder</button>
+            <br><br>
+            <button id="naar-wachtwoord-knop">Volgende ➔</button>
         </div>
 
         <div id="wachtwoord-sectie" style="display: none;">
-            <h3 id="wachtwoord-welkom"></h3>
+            <h3 id="wachtwoord-welkom" style="color: var(--donkergroen); margin-top: 0;"></h3>
             
             <div id="docent-wachtwoord-sectie" style="display: none;">
-                <input type="password" id="docent-wachtwoord-input" placeholder="Wachtwoord leerkracht">
+                <p>Voer het beheerderswachtwoord in:</p>
+                <input type="password" id="docent-wachtwoord-input" class="login-selectie" placeholder="Wachtwoord...">
+                <br><br>
                 <button id="check-docent-wachtwoord">Inloggen</button>
             </div>
 
             <div id="leerling-wachtwoord-sectie" style="display: none;">
-                <input type="password" id="leerling-wachtwoord-input" placeholder="Jouw wachtwoord">
+                <p>Voer je wachtwoord in:</p>
+                <input type="password" id="leerling-wachtwoord-input" class="login-selectie" placeholder="Jouw wachtwoord...">
+                <br><br>
                 <button id="check-leerling-wachtwoord">Inloggen</button>
             </div>
 
-            <p id="foutmelding-login" style="color: red; display: none;">Verkeerd wachtwoord, probeer het opnieuw!</p>
-            <button id="terug-naar-naam-knop" style="margin-top: 15px; background-color: #ccc; color: #333;">Terug</button>
+            <p id="foutmelding-login" style="color: #d32f2f; font-weight: bold; display: none; margin-top: 15px;">❌ Verkeerd wachtwoord, probeer het nog eens!</p>
+            <br>
+            <button id="terug-naar-naam-knop" style="background-color: var(--lichtbruin); margin-top: 15px;">⬅️ Terug</button>
         </div>
     </div>
 
     <div id="planbord" style="display: none;">
         <header>
-            <div class="header-links">
-                <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo-klein" style="width: 50px;">
-                <h2>Ingelogd als: <span id="ingelogde-gebruiker-tekst"></span></h2>
-            </div>
-            <div class="header-rechts">
-                <button id="verander-wachtwoord-knop" style="background-color: var(--oranje); margin-right: 10px;">Wachtwoord wijzigen</button>
+            <img src="logo.png" alt="Logo IKC Binnenstebuiten" class="school-logo-klein">
+            <h2>Mijn Planning (<span id="ingelogde-gebruiker-tekst"></span>)</h2>
+            <div>
                 <button id="handmatig-opslaan-knop" style="display: none; background-color: var(--lichtgroen); margin-right: 10px; border-radius: 5px; cursor: pointer;">💾 Opslaan</button>
+                <button id="verander-wachtwoord-knop" style="display: none; background-color: var(--oranje); margin-right: 10px;">Wachtwoord Wijzigen</button>
                 <button id="logout-knop">Uitloggen</button>
             </div>
         </header>
 
-        <div id="docent-paneel" class="docent-paneel" style="display: none;">
-            <h3>🛠️ Docenten Paneel: Taken klaarzetten</h3>
-            <div class="taak-invoer-balk">
-                <input type="text" id="nieuwe-taak-input" placeholder="Naam van de nieuwe taak...">
-                <select id="taak-type-select">
-                    <option value="flexibel">Zelf Inplannen (Flexibel)</option>
-                    <option value="vast">Vaste Les (Niet versleepbaar)</option>
-                    <option value="dispenser">Dispenser (Oefensoftware, kopieert zich)</option>
-                    <option value="klaartaak">Klaartaak (Gele blokjes)</option>
-                </select>
-                <select id="taak-kolom-select">
-                    <option value="te-doen">Nog inplannen (Kast)</option>
-                    <option value="maandag">Maandag</option>
-                    <option value="dinsdag">Dinsdag</option>
-                    <option value="woensdag">Woensdag</option>
-                    <option value="donderdag">Donderdag</option>
-                    <option value="vrijdag">Vrijdag</option>
-                </select>
-                <button id="voeg-taak-toe-knop">Taak Toevoegen</button>
+        <div id="voortgang-container" class="voortgang-container" style="display: none;">
+            <div class="voortgang-tekst">Jouw voortgang: <span id="voortgang-percentage">0%</span></div>
+            <div class="voortgang-balk-achtergrond">
+                <div id="voortgang-balk-vulling" class="voortgang-balk-vulling"></div>
             </div>
-            <div id="dynamische-checkboxes" class="leerling-checkbox-grid"></div>
         </div>
 
-        <div id="docent-acties" class="docent-acties" style="display: none; justify-content: space-between; margin-bottom: 20px;">
-            <button id="wis-bord-knop" style="background-color: darkred; color: white;">Hele Bord Wissen 🧹</button>
-            <div id="prullenbak" class="prullenbak-zone">🗑️ Sleep taken hierheen om ze voorgoed te wissen</div>
+        <div id="leerling-acties-container" class="leerling-acties-container" style="display: none;">
+            <div id="leerling-prullenbak" class="leerling-prullenbak">
+                🗑️ Foutje? Sleep een blokje hierheen
+            </div>
         </div>
 
-        <div id="leerling-acties-container" style="display: none; justify-content: flex-end; margin-bottom: 10px;">
-            <div id="leerling-prullenbak" class="prullenbak-zone">🗑️ Eigen klaartaak of kloon wissen</div>
+        <div id="docent-paneel" class="docent-paneel">
+            <h3 style="margin-top: 0; color: var(--donkergroen);">Takenbeheer</h3>
+            <div class="invoer-groep" style="flex-wrap: wrap;">
+                <input type="text" id="nieuwe-taak-input" placeholder="Typ hier de naam van de taak...">
+                
+                <select id="taak-type-select" class="login-selectie" style="margin-bottom: 0; width: auto; padding: 12px;">
+                    <option value="flexibel">Normale taak (sleepbaar)</option>
+                    <option value="vast">Vaste taak (onwisbaar)</option>
+                    <option value="dispenser">Dispenser (+ knop)</option>
+                    <option value="klaartaak">Klaartaak 🌟</option>
+                </select>
+
+                <select id="taak-kolom-select" class="login-selectie" style="margin-bottom: 0; width: auto; padding: 12px;">
+                    <option value="te-doen">Zet in: Te Doen 📚</option>
+                    <option value="maandag">Zet in: Maandag</option>
+                    <option value="dinsdag">Zet in: Dinsdag</option>
+                    <option value="woensdag">Zet in: Woensdag</option>
+                    <option value="donderdag">Zet in: Donderdag</option>
+                    <option value="vrijdag">Zet in: Vrijdag</option>
+                </select>
+
+                <button id="voeg-taak-toe-knop">Taak Toevoegen ➕</button>
+            </div>
+            <div class="leerling-checkboxes" id="dynamische-checkboxes"></div>
         </div>
 
-        <div id="voortgang-container" class="voortgang-container">
-            <h3>Jouw Voortgang</h3>
-            <div class="voortgang-balk"><div id="voortgang-balk-vulling" class="voortgang-vulling" style="width: 0%;"></div></div>
-            <p id="voortgang-percentage">0 van de 0 taken af (0%)</p>
+        <div id="docent-acties" class="docent-acties" style="display: none;">
+            <div id="prullenbak" class="actie-blok prullenbak-blok">
+                🗑️ Sleep een flexibele taak hierheen om te wissen
+            </div>
+            <button id="wis-bord-knop" class="actie-blok wis-bord-knop">
+                Hele Bord Wissen 🧹
+            </button>
+        </div>
+        
+        <div class="bord-container">
+            <div class="kolom" id="te-doen"><h3>Te Doen 📚</h3></div>
+            <div class="kolom" id="maandag"><h3>Maandag</h3></div>
+            <div class="kolom" id="dinsdag"><h3>Dinsdag</h3></div>
+            <div class="kolom" id="woensdag"><h3>Woensdag</h3></div>
+            <div class="kolom" id="donderdag"><h3>Donderdag</h3></div>
+            <div class="kolom" id="vrijdag"><h3>Vrijdag</h3></div>
         </div>
 
-        <div class="bord-grid">
-            <div class="kolom te-doen-kolom" id="te-doen"><h3>🗄️ Nog in te plannen</h3></div>
-            <div class="kolom dag-kolom" id="maandag"><h3>Maandag</h3></div>
-            <div class="kolom dag-kolom" id="dinsdag"><h3>Dinsdag</h3></div>
-            <div class="kolom dag-kolom" id="woensdag"><h3>Woensdag</h3></div>
-            <div class="kolom dag-kolom" id="donderdag"><h3>Donderdag</h3></div>
-            <div class="kolom dag-kolom" id="vrijdag"><h3>Vrijdag</h3></div>
-        </div>
-
-        <div id="klaartaken-container" class="klaartaken-container klaartaken-vergrendeld">
-            <h3 style="margin-top: 0;">🎮 Klaartaken</h3>
-            <p id="klaartaken-slot-tekst">Rond eerst je flexibele taken af.</p>
-            <div id="klaartaken-lijst" class="klaartaken-lijst"></div>
-            <div class="klaarkaart-invoer" style="display: none; margin-top: 15px;">
-                <input type="text" id="eigen-klaarkaart" placeholder="Bedenk zelf een extra taak...">
-                <button id="voeg-eigen-klaartaak-toe">Toevoegen</button>
+        <div id="klaartaken-container" class="voortgang-container klaartaken-container klaartaken-vergrendeld" style="display: none;">
+            <div class="voortgang-tekst">
+                Klaartaken 🌟 <span id="klaartaken-slot-tekst" class="slot-tekst">Rond eerst je weektaak af.</span>
+            </div>
+            <div id="klaartaken-lijst" class="klaartaken-horizontaal"></div>
+            <div class="klaarkaart-invoer">
+                <label for="eigen-klaarkaart">Klaarkaart:</label>
+                <input type="text" id="eigen-klaarkaart" placeholder="Typ hier welke kaart je pakt...">
+                <button id="voeg-eigen-klaartaak-toe">Pak Kaart</button>
             </div>
         </div>
 
         <div id="reflectie-container" class="reflectie-container" style="display: none;">
-            <h3>📝 Mijn Reflectie</h3>
-            <div id="reflectie-dagen-grid" class="reflectie-grid"></div>
+            <h3 class="reflectie-titel">Terugblik op de week 📝</h3>
+            <p class="reflectie-uitleg">Hoe ging het vandaag? Klik op een smiley en vul in of je nog iets lastig vond of een hulpvraag hebt.</p>
+            <div class="reflectie-dagen-grid" id="reflectie-dagen-grid"></div>
         </div>
 
         <div id="docent-overzicht" class="docent-overzicht" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--lichtgroen); padding-bottom: 8px;">
-                <h3 style="margin: 0; border: none;">📊 Voortgang van de klas</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--lichtgroen); padding-bottom: 8px; margin-bottom: 10px;">
+                <h3 style="margin: 0; border: none; color: var(--donkergroen);">📊 Voortgang van de klas</h3>
                 <div style="display: flex; gap: 10px;">
                     <button id="download-overzicht-knop" style="background-color: var(--donkergroen); font-size: 14px;">Overzicht Downloaden 📥</button>
                     <button id="bekijk-wachtwoorden-knop" style="background-color: var(--oranje); font-size: 14px;">Wachtwoorden Klas 👀</button>
                 </div>
             </div>
-            <div id="overzicht-lijst" style="margin-top: 15px;"></div>
+            <p style="font-size: 14px; color: var(--lichtbruin); margin-top: 0; margin-bottom: 15px;">Klik op een leerling om de reflecties en afgeronde taken te bekijken.</p>
+            <div id="overzicht-lijst" class="overzicht-lijst"></div>
         </div>
     </div>
 
-    <div id="wachtwoord-modal" class="modal" style="display: none;">
+    <div id="leerling-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <span id="sluit-wachtwoord-modal" class="close-modal">&times;</span>
-            <h3>Wachtwoord wijzigen</h3>
-            <p>Kies een nieuw, makkelijk te onthouden wachtwoord:</p>
-            <input type="text" id="nieuw-wachtwoord-input" style="width: 80%; padding: 10px; margin-bottom: 15px;">
-            <button id="opslaan-wachtwoord-knop">Opslaan</button>
+            <span class="sluit-modal" id="sluit-modal">&times;</span>
+            <div id="modal-leerling-inhoud"></div>
         </div>
     </div>
 
-    <div id="leerling-modal" class="modal" style="display: none;">
-        <div class="modal-content" id="modal-leerling-inhoud">
-            <span id="sluit-modal" class="close-modal">&times;</span>
-            </div>
+    <div id="wachtwoord-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="sluit-modal" id="sluit-wachtwoord-modal">&times;</span>
+            <h4 style="margin-bottom: 15px;">Wachtwoord wijzigen</h4>
+            <p style="margin-bottom: 20px;">Bedenk een nieuw, geheim wachtwoord:</p>
+            <input type="text" id="nieuw-wachtwoord-input" class="login-selectie" placeholder="Typ je nieuwe wachtwoord...">
+            <br><br>
+            <button id="opslaan-wachtwoord-knop" style="width: 100%;">Opslaan</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
