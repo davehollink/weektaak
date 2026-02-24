@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (Volledige Google Sheets Sync!)
+// script.js - De motor van onze weektaak (Volledige Google Sheets Sync met slimme opslag!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -22,7 +22,7 @@ const wachtwoordWelkom = document.getElementById('wachtwoord-welkom');
 const docentWachtwoordSectie = document.getElementById('docent-wachtwoord-sectie');
 const leerlingWachtwoordSectie = document.getElementById('leerling-wachtwoord-sectie');
 const docentWachtwoordInput = document.getElementById('docent-wachtwoord-input');
-const checkDocentWachtwoordKnop = document.getElementById('check-docent-wachtwoord'); // Hier is de fout hersteld!
+const checkDocentWachtwoordKnop = document.getElementById('check-docent-wachtwoord');
 
 const leerlingWachtwoordInput = document.getElementById('leerling-wachtwoord-input');
 const checkLeerlingWachtwoordKnop = document.getElementById('check-leerling-wachtwoord');
@@ -76,6 +76,7 @@ const reflectieData = {};
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
 let opgeslagenBorden = {};
+let saveTimeout = null; // Timer voor het vertraagd opslaan (debounce)
 
 // --- Google Sheets Functies ---
 async function haalDataUitGoogle(sheetNaam) {
@@ -99,31 +100,38 @@ async function stuurDataNaarGoogle(payload) {
     } catch (error) {}
 }
 
-// BORD OPSLAAN
+// BORD OPSLAAN (Met slimme vertraging tegen vastlopen van Google Sheets)
 function stuurBordNaarGoogle() {
     if (!huidigeGroep) return;
-    const takenData = [];
-    document.querySelectorAll(`.taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
-        let attrObj = {};
-        Array.from(taak.attributes).forEach(attr => {
-            if(attr.name.startsWith('data-') || attr.name === 'draggable' || attr.name === 'id' || attr.name === 'class') {
-                attrObj[attr.name] = attr.value;
+    
+    // Wis de vorige timer als de leerling wéér een blokje sleept
+    clearTimeout(saveTimeout);
+    
+    // Wacht 1 seconde na de laatste actie, en sla dan pas op
+    saveTimeout = setTimeout(() => {
+        const takenData = [];
+        document.querySelectorAll(`.taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
+            let attrObj = {};
+            Array.from(taak.attributes).forEach(attr => {
+                if(attr.name.startsWith('data-') || attr.name === 'draggable' || attr.name === 'id' || attr.name === 'class') {
+                    attrObj[attr.name] = attr.value;
+                }
+            });
+            takenData.push({
+                kolom: taak.parentElement.id,
+                html: taak.innerHTML,
+                attrs: attrObj
+            });
+        });
+        
+        stuurDataNaarGoogle({
+            sheet: 'taken',
+            row: {
+                groep: huidigeGroep,
+                bord_data: JSON.stringify(takenData)
             }
         });
-        takenData.push({
-            kolom: taak.parentElement.id,
-            html: taak.innerHTML,
-            attrs: attrObj
-        });
-    });
-    
-    stuurDataNaarGoogle({
-        sheet: 'taken',
-        row: {
-            groep: huidigeGroep,
-            bord_data: JSON.stringify(takenData)
-        }
-    });
+    }, 1000); 
 }
 
 // --- Initialisatie Lokaal ---
