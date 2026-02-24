@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (Touchscreen & Safe-Save Update!)
+// script.js - De motor van onze weektaak (HERSTELDE OPSLAG UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -76,11 +76,12 @@ const reflectieData = {};
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
 let opgeslagenBorden = {};
+
 let saveTimeout = null; 
+let isAanHetOpslaan = false;
 
 // --- Google Sheets Functies ---
 async function haalDataUitGoogle(sheetNaam) {
-    if(GOOGLE_SCRIPT_URL.includes("VUL_HIER")) return [];
     try {
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?sheet=${sheetNaam}`);
         return await response.json();
@@ -90,23 +91,25 @@ async function haalDataUitGoogle(sheetNaam) {
 }
 
 async function stuurDataNaarGoogle(payload) {
-    if(GOOGLE_SCRIPT_URL.includes("VUL_HIER")) return;
     try {
+        // Let op: keepalive is VERWIJDERD om crashes met grote data te voorkomen!
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
-            keepalive: true, // Belangrijk: zorgt dat de taak opgeslagen wordt, ook als de docent direct wegklikt
             body: JSON.stringify(payload)
         });
-    } catch (error) {}
+    } catch (error) {
+        console.error("Opslaan mislukt:", error);
+    }
 }
 
-// BORD OPSLAAN (Met Direct Save Optie)
-function stuurBordNaarGoogle(direct = false) {
+// BORD OPSLAAN (Veilige opslag-methode)
+async function stuurBordNaarGoogle(direct = false) {
     if (!huidigeGroep) return;
     clearTimeout(saveTimeout);
     
-    const doeOpslaan = () => {
+    const doeOpslaan = async () => {
+        isAanHetOpslaan = true;
         const takenData = [];
         document.querySelectorAll(`.taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
             let attrObj = {};
@@ -122,17 +125,18 @@ function stuurBordNaarGoogle(direct = false) {
             });
         });
         
-        stuurDataNaarGoogle({
+        await stuurDataNaarGoogle({
             sheet: 'taken',
             row: {
                 groep: huidigeGroep,
                 bord_data: JSON.stringify(takenData)
             }
         });
+        isAanHetOpslaan = false;
     };
 
     if (direct) {
-        doeOpslaan(); 
+        await doeOpslaan(); 
     } else {
         saveTimeout = setTimeout(doeOpslaan, 1000); 
     }
@@ -157,7 +161,7 @@ function initLokaal() {
 }
 initLokaal();
 
-// --- Sync met Google Sheets (op de achtergrond) ---
+// --- Sync met Google Sheets ---
 async function syncMetGoogle() {
     const cloudWachtwoorden = await haalDataUitGoogle('wachtwoorden');
     cloudWachtwoorden.forEach(rij => {
@@ -260,7 +264,6 @@ if(checkLeerlingWachtwoordKnop) {
     });
 }
 
-// Wachtwoord Wijzigen
 veranderWachtwoordKnop.addEventListener('click', () => {
     nieuwWachtwoordInput.value = wachtwoordenDatabase[huidigeGebruiker]; 
     wachtwoordModal.style.display = 'flex';
@@ -345,12 +348,24 @@ async function voerSuccesvolleLoginUit() {
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Inloggen";
 }
 
-logoutKnop.addEventListener('click', () => {
+// SLIMME EN VEILIGE UITLOG KNOP (Geen data-verlies meer!)
+logoutKnop.addEventListener('click', async () => {
+    logoutKnop.innerText = "Uitloggen...";
+    logoutKnop.style.opacity = "0.5";
+    logoutKnop.style.pointerEvents = "none";
+    
     if (saveTimeout) {
         clearTimeout(saveTimeout);
-        stuurBordNaarGoogle(true); 
+        await stuurBordNaarGoogle(true); 
+    } else if (isAanHetOpslaan) {
+        // Wacht héél even als hij op de achtergrond nog bezig was
+        await new Promise(resolve => setTimeout(resolve, 600));
     }
-    location.reload();
+    
+    // Een mini buffer zodat de Google Servers het netjes kunnen wegschrijven voor de browser herlaadt
+    setTimeout(() => {
+        location.reload();
+    }, 500);
 });
 
 function laadBordVanafData(takenData) {
@@ -661,7 +676,7 @@ function handleTouchStart(e) {
     touchKloon = this.cloneNode(true);
     touchKloon.style.position = 'fixed';
     touchKloon.style.zIndex = '9999';
-    touchKloon.style.pointerEvents = 'none'; // Erg belangrijk: de vinger moet er 'doorheen' kunnen klikken
+    touchKloon.style.pointerEvents = 'none'; 
     touchKloon.style.width = this.offsetWidth + 'px';
     touchKloon.style.left = (touch.clientX - (this.offsetWidth/2)) + 'px';
     touchKloon.style.top = (touch.clientY - (this.offsetHeight/2)) + 'px';
@@ -671,7 +686,7 @@ function handleTouchStart(e) {
 
 function handleTouchMove(e) {
     if (!activeTouchTaak) return;
-    e.preventDefault(); // Voorkomt dat het scherm gaat scrollen tijdens het slepen!
+    e.preventDefault(); 
     const touch = e.touches[0];
     if (touchKloon) {
         touchKloon.style.left = (touch.clientX - (activeTouchTaak.offsetWidth/2)) + 'px';
@@ -746,8 +761,6 @@ function verwerkLeerlingPrullenbakDrop() {
         alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
     }
 }
-
-let gesleepteTaak = null;
 
 function maakTaakSleepbaar(taak) {
     taak.addEventListener('dragstart', function(e) {
@@ -981,7 +994,7 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         }
         
         berekenVoortgang(); 
-        stuurBordNaarGoogle(true); 
+        await stuurBordNaarGoogle(true); // DIRECT Opslaan!
         
         wisKnop.innerText = "Hele Bord Wissen 🧹";
         wisKnop.style.opacity = "1";
