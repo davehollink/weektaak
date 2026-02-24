@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (HERSTELDE OPSLAG UPDATE!)
+// script.js - De motor van onze weektaak (Touchscreen, Debounce & Handmatig Opslaan Update!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -17,6 +17,7 @@ const wieLogtInSelect = document.getElementById('wie-logt-in');
 const naarWachtwoordKnop = document.getElementById('naar-wachtwoord-knop');
 const terugNaarNaamKnop = document.getElementById('terug-naar-naam-knop');
 const logoutKnop = document.getElementById('logout-knop');
+const handmatigOpslaanKnop = document.getElementById('handmatig-opslaan-knop'); // NIEUW: Handmatige Opslaanknop
 
 const wachtwoordWelkom = document.getElementById('wachtwoord-welkom');
 const docentWachtwoordSectie = document.getElementById('docent-wachtwoord-sectie');
@@ -92,7 +93,6 @@ async function haalDataUitGoogle(sheetNaam) {
 
 async function stuurDataNaarGoogle(payload) {
     try {
-        // Let op: keepalive is VERWIJDERD om crashes met grote data te voorkomen!
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -297,6 +297,8 @@ async function voerSuccesvolleLoginUit() {
     wachtwoordSectie.style.display = 'none';
     loginScherm.style.display = 'none';
     planbord.style.display = 'block';
+    if(handmatigOpslaanKnop) handmatigOpslaanKnop.style.display = 'inline-block'; // Knop tonen!
+    
     vulDynamischeCheckboxes();
 
     if (isD) {
@@ -348,7 +350,7 @@ async function voerSuccesvolleLoginUit() {
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Inloggen";
 }
 
-// SLIMME EN VEILIGE UITLOG KNOP (Geen data-verlies meer!)
+// SLIMME EN VEILIGE UITLOG KNOP
 logoutKnop.addEventListener('click', async () => {
     logoutKnop.innerText = "Uitloggen...";
     logoutKnop.style.opacity = "0.5";
@@ -358,11 +360,9 @@ logoutKnop.addEventListener('click', async () => {
         clearTimeout(saveTimeout);
         await stuurBordNaarGoogle(true); 
     } else if (isAanHetOpslaan) {
-        // Wacht héél even als hij op de achtergrond nog bezig was
         await new Promise(resolve => setTimeout(resolve, 600));
     }
     
-    // Een mini buffer zodat de Google Servers het netjes kunnen wegschrijven voor de browser herlaadt
     setTimeout(() => {
         location.reload();
     }, 500);
@@ -800,15 +800,12 @@ leerlingPrullenbak.addEventListener('drop', function() {
 
 // --- Taken Bouwen & Gebeurtenissen (Centraal) ---
 function koppelTaakEvents(taak) {
-    // 1. Oude HTML5 Drag
     maakTaakSleepbaar(taak); 
 
-    // 2. Nieuwe Touch Drag (Voor Chromebooks/Pads)
     taak.addEventListener('touchstart', handleTouchStart, {passive: false});
     taak.addEventListener('touchmove', handleTouchMove, {passive: false});
     taak.addEventListener('touchend', handleTouchEnd);
 
-    // 3. Klik acties (Afvinken / tellers)
     if (!taak.classList.contains('dispenser-taak')) {
         taak.onclick = function(e) {
             if (huidigeGebruiker === 'Docent') return;
@@ -920,7 +917,7 @@ document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', ()
     if(invoerVeld.value.trim() !== '') {
         document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(invoerVeld.value.trim(), huidigeGebruiker, true, false, huidigeGroep, 'leerling'));
         invoerVeld.value = ''; 
-        stuurBordNaarGoogle(true); // DIRECT Opslaan!
+        stuurBordNaarGoogle(true); 
     }
 });
 
@@ -953,7 +950,7 @@ function voegNieuweTaakToe() {
 
         document.getElementById('nieuwe-taak-input').value = ''; 
         updateTaakZichtbaarheid(); berekenVoortgang(); 
-        stuurBordNaarGoogle(true); // DIRECT Opslaan!
+        stuurBordNaarGoogle(true); 
     }
 }
 
@@ -994,7 +991,7 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         }
         
         berekenVoortgang(); 
-        await stuurBordNaarGoogle(true); // DIRECT Opslaan!
+        await stuurBordNaarGoogle(true); 
         
         wisKnop.innerText = "Hele Bord Wissen 🧹";
         wisKnop.style.opacity = "1";
@@ -1003,6 +1000,24 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         alert("Het bord en de reflecties zijn succesvol leeggemaakt voor de nieuwe week!");
     }
 });
+
+// --- HANDMATIGE OPSLAAN KNOP ---
+if(handmatigOpslaanKnop) {
+    handmatigOpslaanKnop.addEventListener('click', async () => {
+        handmatigOpslaanKnop.innerText = "⏳ Opslaan...";
+        handmatigOpslaanKnop.style.opacity = "0.7";
+        handmatigOpslaanKnop.style.pointerEvents = "none";
+        
+        await stuurBordNaarGoogle(true);
+        
+        handmatigOpslaanKnop.innerText = "✅ Opgeslagen!";
+        handmatigOpslaanKnop.style.opacity = "1";
+        setTimeout(() => {
+            handmatigOpslaanKnop.innerText = "💾 Opslaan";
+            handmatigOpslaanKnop.style.pointerEvents = "auto";
+        }, 2000);
+    });
+}
 
 // --- WEEKTDOWNLOAD (EXCEL/CSV) ---
 const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
