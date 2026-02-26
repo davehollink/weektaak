@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (UNIEKE PROFIELEN & BLADWIJZERS UPDATE!)
+// script.js - De motor van onze weektaak (ENTER-KNOP & STABIELE TOUCH UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -75,9 +75,9 @@ let globaleTaakId = 1;
 const reflectieData = {};
 const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
-let opgeslagenBorden = {}; // Slaat nu unieke profielen op!
+let opgeslagenBorden = {}; 
 
-// --- URL Bladwijzer Functionaliteit (Lees de link uit) ---
+// --- URL Bladwijzer Functionaliteit ---
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlGroep = urlParams.get('groep');
@@ -85,7 +85,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (urlGroep && scholenDatabase[urlGroep]) {
         kiesGroepSelect.value = urlGroep;
-        kiesGroepSelect.dispatchEvent(new Event('change')); // Vult de namenlijst in
+        kiesGroepSelect.dispatchEvent(new Event('change')); 
         
         if (urlNaam) {
             setTimeout(() => { 
@@ -118,7 +118,7 @@ async function stuurDataNaarGoogle(payload) {
     }
 }
 
-// BORD OPSLAAN (Nu met unieke kluisjes per kind!)
+// BORD OPSLAAN
 async function stuurBordNaarGoogle() {
     if (!huidigeGroep || !huidigeGebruiker) return;
     
@@ -137,7 +137,6 @@ async function stuurBordNaarGoogle() {
         });
     });
     
-    // HET GEHEIM: Sla op onder Groep + Naam (bijv. Groep 8 oranje_Dante)
     let opslagSleutel = huidigeGebruiker === "Docent" ? huidigeGroep + "_Docent" : huidigeGroep + "_" + huidigeGebruiker;
 
     await stuurDataNaarGoogle({
@@ -185,8 +184,6 @@ async function syncMetGoogle() {
             }
         });
     }
-
-    // Laat de data vooralsnog leeg, we vullen dit in bij het inloggen!
 }
 syncMetGoogle(); 
 
@@ -230,7 +227,7 @@ function vulDynamischeCheckboxes() {
     });
 }
 
-// --- Wachtwoord Flow ---
+// --- Wachtwoord Flow & ENTER Knoppen ---
 naarWachtwoordKnop.addEventListener('click', () => {
     if (kiesGroepSelect.value === "" || wieLogtInSelect.value === "") return alert("Kies eerst een groep en een naam!");
     huidigeGebruiker = wieLogtInSelect.value;
@@ -256,12 +253,26 @@ terugNaarNaamKnop.addEventListener('click', () => {
     inlogKeuzeSectie.style.display = 'block';
 });
 
+// NIEUW: Reageer op Enter-toets voor Docent
+docentWachtwoordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        checkDocentWachtwoordKnop.click();
+    }
+});
+
 if(checkDocentWachtwoordKnop) {
     checkDocentWachtwoordKnop.addEventListener('click', () => {
         if (docentWachtwoordInput.value === DOCENT_WACHTWOORD) voerSuccesvolleLoginUit();
         else foutmeldingLogin.style.display = 'block';
     });
 }
+
+// NIEUW: Reageer op Enter-toets voor Leerling
+leerlingWachtwoordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        checkLeerlingWachtwoordKnop.click();
+    }
+});
 
 if(checkLeerlingWachtwoordKnop) {
     checkLeerlingWachtwoordKnop.addEventListener('click', () => {
@@ -285,20 +296,18 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
     }
 });
 
-// --- Daadwerkelijke Inlog & BORD LADEN (Slim samenvoegen!) ---
+// --- Daadwerkelijke Inlog & BORD LADEN ---
 async function voerSuccesvolleLoginUit() {
     const isD = (huidigeGebruiker === "Docent");
     
     if(isD && checkDocentWachtwoordKnop) checkDocentWachtwoordKnop.innerText = "Laden...";
     else if(checkLeerlingWachtwoordKnop) checkLeerlingWachtwoordKnop.innerText = "Laden...";
 
-    // 1. Maak de adresbalk netjes zodat het een bladwijzer kan worden!
     const url = new URL(window.location);
     url.searchParams.set('groep', huidigeGroep);
     url.searchParams.set('naam', huidigeGebruiker);
     window.history.pushState({}, '', url);
 
-    // 2. Haal actuele data op
     const cloudTaken = await haalDataUitGoogle('taken');
     if (cloudTaken === null) {
         alert("⚠️ Kan geen verbinding maken met de database. Probeer het opnieuw!");
@@ -307,7 +316,7 @@ async function voerSuccesvolleLoginUit() {
         return; 
     }
 
-    opgeslagenBorden = {}; // Reset actuele geheugen
+    opgeslagenBorden = {}; 
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
             try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
@@ -328,7 +337,6 @@ async function voerSuccesvolleLoginUit() {
     });
     document.getElementById('klaartaken-lijst').innerHTML = '';
 
-    // 3. Kies het juiste bord om te laden
     let docentData = opgeslagenBorden[huidigeGroep + "_Docent"] || opgeslagenBorden[huidigeGroep] || [];
     
     if (isD) {
@@ -364,13 +372,10 @@ async function voerSuccesvolleLoginUit() {
         let studentData = opgeslagenBorden[huidigeGroep + "_" + huidigeGebruiker];
 
         if (!studentData || studentData.length === 0) {
-            // Kind logt voor de eerste keer in: Krijgt de basis van de docent
             laadBordVanafData(docentData);
         } else {
-            // Kind is al bezig geweest: Laad zijn/haar kluisje
             laadBordVanafData(studentData);
             
-            // Controle 1: Heeft de docent net een nieuwe basistaak toegevoegd? Zet deze er dan bij!
             const docentTaakIds = [];
             docentData.forEach(dTaak => {
                 docentTaakIds.push(dTaak.attrs.id);
@@ -384,7 +389,6 @@ async function voerSuccesvolleLoginUit() {
                 }
             });
 
-            // Controle 2: Heeft docent een basistaak gewist? Haal hem dan ook weg bij het kind.
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
                 if (taak.getAttribute('data-maker') === 'docent') {
                     if (!docentTaakIds.includes(taak.id)) taak.remove();
@@ -402,7 +406,6 @@ async function voerSuccesvolleLoginUit() {
 }
 
 logoutKnop.addEventListener('click', () => {
-    // Alleen nog puur herladen. Niets overschrijven!
     location.reload();
 });
 
@@ -547,7 +550,6 @@ function updateTaakZichtbaarheid() {
     });
 }
 
-// --- NIEUWE SLIMME BEREKENING (Kijkt in de kluisjes!) ---
 function berekenVoortgang() {
     const alleOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                 .filter(t => t.getAttribute('data-groep') === huidigeGroep);
@@ -562,7 +564,6 @@ function berekenVoortgang() {
             let klaar = 0;
             let afgerondeNamenLijst = [];
             
-            // Pak het persoonlijke opgeslagen bord van de leerling uit het geheugen!
             let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
             
             alleOriginelen.forEach(origineel => {
@@ -571,7 +572,6 @@ function berekenVoortgang() {
                     totaal++;
                     let isKlaar = false;
 
-                    // Zoek in HUN bord of het is afgevinkt of dat er een afgevinkte kloon is
                     const sTaak = sBord.find(t => t.attrs && t.attrs.id === origineel.id);
                     if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].includes(leerling)) {
                         isKlaar = true;
@@ -610,7 +610,6 @@ function berekenVoortgang() {
         });
         
     } else {
-        // Leerling logica (kijkt gewoon naar eigen bord)
         let totaal = 0;
         let klaar = 0;
         let flexibelTotaal = 0; 
@@ -715,7 +714,9 @@ function handleTouchMove(e) {
 
 function handleTouchEnd(e) {
     if (!activeTouchTaak) return;
-    const touch = e.changedTouches[0];
+    const touch = e.changedTouches ? e.changedTouches[0] : null;
+    
+    // Herstel ALTIJD de doorzichtigheid!
     activeTouchTaak.style.opacity = '1';
 
     if (touchKloon) {
@@ -723,15 +724,17 @@ function handleTouchEnd(e) {
         touchKloon = null;
     }
 
-    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (dropTarget) {
-        const kolom = dropTarget.closest('.kolom');
-        const pDocent = dropTarget.closest('#prullenbak');
-        const pLeerling = dropTarget.closest('#leerling-prullenbak');
+    if (touch) {
+        const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (dropTarget) {
+            const kolom = dropTarget.closest('.kolom');
+            const pDocent = dropTarget.closest('#prullenbak');
+            const pLeerling = dropTarget.closest('#leerling-prullenbak');
 
-        if (kolom) verwerkDropActie(kolom);
-        else if (pDocent) verwerkDocentPrullenbakDrop();
-        else if (pLeerling) verwerkLeerlingPrullenbakDrop();
+            if (kolom) verwerkDropActie(kolom);
+            else if (pDocent) verwerkDocentPrullenbakDrop();
+            else if (pLeerling) verwerkLeerlingPrullenbakDrop();
+        }
     }
 
     activeTouchTaak = null;
@@ -788,7 +791,8 @@ function maakTaakSleepbaar(taak) {
     });
     taak.addEventListener('dragend', function() {
         setTimeout(() => {
-            taak.style.opacity = (taak.classList.contains('extra-taak') && taak.getAttribute('draggable') === 'false') ? '0.5' : '1';
+            taak.style.opacity = '1'; // Altijd terug naar 1 bij loslaten muis
+            if(taak.classList.contains('extra-taak') && taak.getAttribute('draggable') === 'false') taak.style.opacity = '0.5';
             gesleepteTaak = null;
         }, 0);
     });
@@ -824,6 +828,9 @@ function koppelTaakEvents(taak) {
     taak.addEventListener('touchstart', handleTouchStart, {passive: false});
     taak.addEventListener('touchmove', handleTouchMove, {passive: false});
     taak.addEventListener('touchend', handleTouchEnd);
+    
+    // NIEUW: Deze voorkomt dat blokken doorzichtig blijven op Chromebooks!
+    taak.addEventListener('touchcancel', handleTouchEnd); 
 
     if (!taak.classList.contains('dispenser-taak')) {
         taak.onclick = function(e) {
@@ -970,7 +977,7 @@ function voegNieuweTaakToe() {
     }
 }
 
-// SLIM SCHOONMAKEN: Wist nu ook de kluisjes van de leerlingen!
+// SLIM SCHOONMAKEN
 document.getElementById('wis-bord-knop').addEventListener('click', async () => {
     if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de kluisjes en ingevulde reflecties van deze groep worden dan leeggemaakt!")) {
         
@@ -1005,7 +1012,6 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
                 }
             }
             
-            // Gooi het opslag-kluisje van deze leerling leeg in de database
             await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: huidigeGroep + "_" + leerling, bord_data: "[]" }});
         }
         
@@ -1039,7 +1045,7 @@ if(handmatigOpslaanKnop) {
     });
 }
 
-// --- WEEKTDOWNLOAD (Aangepast voor kluisjes-data) ---
+// --- WEEKTDOWNLOAD ---
 const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
 if(downloadOverzichtKnop) {
     downloadOverzichtKnop.addEventListener('click', () => {
