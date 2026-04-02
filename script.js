@@ -312,7 +312,10 @@ async function voerSuccesvolleLoginUit() {
     opgeslagenBorden = {}; 
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
-            try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
+            // FIX: Voorkomt dat eventuele dubbele rijen de goede data overschrijven
+            if (!opgeslagenBorden[rij.groep]) {
+                try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
+            }
         }
     });
 
@@ -369,17 +372,16 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
-            // --- KEIHARDE EN SLIMME SYNC-LOGICA (Nu puur op NAAM) ---
+            // --- KEIHARDE EN SLIMME SYNC-LOGICA ---
             let actueleDocentNamen = [];
             let bordAangepast = false;
 
-            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft aan namen
+            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft (puur op naam!)
             docentData.forEach(dTaak => {
                 if(dTaak.attrs['data-taak-naam']) {
                     let dNaam = dTaak.attrs['data-taak-naam'].trim().toLowerCase();
                     actueleDocentNamen.push(dNaam);
                     
-                    // Voeg taak toe als het kind deze naam nog helemaal niet heeft
                     let alleTaken = document.querySelectorAll('.taak:not(.kloon-taak)');
                     let taakBestaat = Array.from(alleTaken).find(t => (t.getAttribute('data-taak-naam') || '').trim().toLowerCase() === dNaam);
 
@@ -388,7 +390,7 @@ async function voerSuccesvolleLoginUit() {
                         for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
                         if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
                         nieuweTaak.innerHTML = dTaak.html;
-                        nieuweTaak.id = 'taak-' + globaleTaakId++; // Voorkom ID botsingen
+                        nieuweTaak.id = 'taak-' + globaleTaakId++; 
                         const doelKolom = document.getElementById(dTaak.kolom);
                         if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
                         bordAangepast = true;
@@ -396,15 +398,13 @@ async function voerSuccesvolleLoginUit() {
                 }
             });
 
-            // 2. Grote Schoonmaak: Vernietig spoken (zoals oude Topografie)
+            // 2. Grote Schoonmaak: Vernietig spoken (GEEN ID CHECK MEER!)
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
                 let maker = taak.getAttribute('data-maker');
                 let naam = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
-                let isKlaartaak = taak.classList.contains('extra-taak');
 
-                // Een taak is een docenten-taak als hij maker="docent" heeft OF als hij stokoud is (geen maker en geen klaartaak)
-                if (maker === 'docent' || (!maker && !isKlaartaak)) {
-                    // Staat de naam NIET meer in de actuele lijst van de docent?
+                // Als het GEEN eigen bedachte taak van de leerling is, MOET hij voorkomen in de lijst van de docent.
+                if (maker !== 'leerling') {
                     if (!actueleDocentNamen.includes(naam)) {
                         taak.remove(); // Genadeloos weggooien!
                         bordAangepast = true;
@@ -412,7 +412,6 @@ async function voerSuccesvolleLoginUit() {
                 }
             });
 
-            // 3. Spook verwijderd? Sla direct het schone bord op in het kluisje van het kind!
             if (bordAangepast) {
                 stuurBordNaarGoogle(); 
             }
