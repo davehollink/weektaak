@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (TROTS-REFLECTIE UPDATE!)
+// script.js - De motor van onze weektaak (LEGACY SCHOONMAAK UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -375,10 +375,22 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
+            // --- DE SLIMME EN STRENGE SYNC-LOGICA ---
             const docentTaakIds = [];
+            const docentTaakNamen = [];
+            
             docentData.forEach(dTaak => {
                 docentTaakIds.push(dTaak.attrs.id);
-                if (!document.getElementById(dTaak.attrs.id)) {
+                docentTaakNamen.push(dTaak.attrs['data-taak-naam']);
+                
+                // Voeg ontbrekende docent taken toe (op ID of als fallback op Naam)
+                let taakBestaat = document.getElementById(dTaak.attrs.id);
+                if (!taakBestaat) {
+                    let takenMetZelfdeNaam = Array.from(document.querySelectorAll(`.taak[data-taak-naam="${dTaak.attrs['data-taak-naam']}"]`));
+                    taakBestaat = takenMetZelfdeNaam.find(t => !t.classList.contains('kloon-taak'));
+                }
+
+                if (!taakBestaat) {
                     const nieuweTaak = document.createElement('div');
                     for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
                     if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
@@ -388,9 +400,18 @@ async function voerSuccesvolleLoginUit() {
                 }
             });
 
+            // Grote schoonmaak: Wis wat de docent heeft verwijderd!
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
-                if (taak.getAttribute('data-maker') === 'docent') {
-                    if (!docentTaakIds.includes(taak.id)) taak.remove();
+                let maker = taak.getAttribute('data-maker');
+                let isKlaartaak = taak.classList.contains('extra-taak');
+                let taakNaam = taak.getAttribute('data-taak-naam');
+
+                // Een taak kwam van de docent als: Hij als 'docent' is gemarkeerd, OF (voor oude taken zoals topografie) als er geen maker was en het geen klaartaak is.
+                if (maker === 'docent' || (!maker && !isKlaartaak)) {
+                    // Als de docent deze taak niet meer in zijn lijst heeft (niet op ID en niet op Naam) -> Gooi hem weg!
+                    if (!docentTaakIds.includes(taak.id) && !docentTaakNamen.includes(taakNaam)) {
+                        taak.remove();
+                    }
                 }
             });
         }
@@ -678,7 +699,6 @@ function berekenVoortgang() {
     }
 }
 
-// DE FIX: De Trots vraag wordt nu correct in de pop-up gezet!
 function openLeerlingModal(leerling, afgerondeNamenLijst) {
     let takenHtml = afgerondeNamenLijst.length > 0 ? `<ul class="detail-taken-lijst">` + afgerondeNamenLijst.map(n => `<li>${n}</li>`).join('') + `</ul>` : `<p>Nog geen taken afgerond.</p>`;
     let reflectieHtml = '';
