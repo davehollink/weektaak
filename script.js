@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (DEFINITIEVE ANTI-SPOOK UPDATE!)
+// script.js - De motor van onze weektaak (GENADELOZE SCHOONMAAK UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -312,10 +312,8 @@ async function voerSuccesvolleLoginUit() {
     opgeslagenBorden = {}; 
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
-            // FIX: Voorkomt dat eventuele dubbele rijen de goede data overschrijven
-            if (!opgeslagenBorden[rij.groep]) {
-                try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
-            }
+            // FIX: Zonder "if" blok pakt hij nu áltijd de állerlaatste en meest actuele data
+            try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
         }
     });
 
@@ -376,42 +374,60 @@ async function voerSuccesvolleLoginUit() {
             let actueleDocentNamen = [];
             let bordAangepast = false;
 
-            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft (puur op naam!)
+            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft staan
             docentData.forEach(dTaak => {
-                if(dTaak.attrs['data-taak-naam']) {
-                    let dNaam = dTaak.attrs['data-taak-naam'].trim().toLowerCase();
-                    actueleDocentNamen.push(dNaam);
-                    
+                let dNaamAttr = dTaak.attrs['data-taak-naam'];
+                
+                // Valback: we lezen de keiharde tekst in het blokje af als de data-naam ontbreekt
+                let tempDiv = document.createElement('div');
+                tempDiv.innerHTML = dTaak.html;
+                let dTxt = tempDiv.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                
+                let finalNaam = (dNaamAttr ? dNaamAttr.trim().toLowerCase() : dTxt);
+                if (finalNaam) actueleDocentNamen.push(finalNaam);
+                
+                // Kijken of we deze taak nog moeten TOEVOEGEN bij de leerling
+                let taakBestaat = document.getElementById(dTaak.attrs.id);
+                if (!taakBestaat) {
                     let alleTaken = document.querySelectorAll('.taak:not(.kloon-taak)');
-                    let taakBestaat = Array.from(alleTaken).find(t => (t.getAttribute('data-taak-naam') || '').trim().toLowerCase() === dNaam);
+                    taakBestaat = Array.from(alleTaken).find(t => {
+                        let tAttr = (t.getAttribute('data-taak-naam') || '').trim().toLowerCase();
+                        let tTxt = t.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                        return (tAttr === finalNaam) || (tTxt === finalNaam);
+                    });
+                }
 
-                    if (!taakBestaat) {
-                        const nieuweTaak = document.createElement('div');
-                        for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
-                        if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
-                        nieuweTaak.innerHTML = dTaak.html;
-                        nieuweTaak.id = 'taak-' + globaleTaakId++; 
-                        const doelKolom = document.getElementById(dTaak.kolom);
-                        if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
-                        bordAangepast = true;
-                    }
+                if (!taakBestaat) {
+                    const nieuweTaak = document.createElement('div');
+                    for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
+                    if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
+                    nieuweTaak.innerHTML = dTaak.html;
+                    nieuweTaak.id = 'taak-' + globaleTaakId++; 
+                    const doelKolom = document.getElementById(dTaak.kolom);
+                    if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
+                    bordAangepast = true;
                 }
             });
 
-            // 2. Grote Schoonmaak: Vernietig spoken (GEEN ID CHECK MEER!)
+            // 2. Grote Schoonmaak: Vernietig alle spoken!
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
                 let maker = taak.getAttribute('data-maker');
-                let naam = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
+                if (maker === 'leerling') return; // Blijf van eigen bedachte taken af
 
-                // Als het GEEN eigen bedachte taak van de leerling is, MOET hij voorkomen in de lijst van de docent.
-                if (maker !== 'leerling') {
-                    if (!actueleDocentNamen.includes(naam)) {
-                        taak.remove(); // Genadeloos weggooien!
-                        bordAangepast = true;
-                    }
+                let naamAttr = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
+                let txtNaam = taak.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+
+                // Controleer de actuele docentenlijst met zowel het labeltje als de kale tekst
+                if (naamAttr && !actueleDocentNamen.includes(naamAttr) && !actueleDocentNamen.includes(txtNaam)) {
+                    taak.remove(); // Staat hij nergens meer in de docentenlijst? WEG ERMEE!
+                    bordAangepast = true;
+                } else if (!naamAttr && !actueleDocentNamen.includes(txtNaam)) {
+                    taak.remove(); // Zelfs een spook zónder labeltje wordt nu herkend en verwijderd
+                    bordAangepast = true;
                 }
             });
 
+            // 3. Als we spoken hebben gewist, dwingen we het kinderklemmetje direct om de schone staat op te slaan
             if (bordAangepast) {
                 stuurBordNaarGoogle(); 
             }
@@ -1023,7 +1039,7 @@ function voegNieuweTaakToe() {
             if (taakType === 'vast') { nieuweTaak = bouwVasteTaakElement(nieuweTaakTekst, ondertitelTekst, huidigeGroep, leerling); }
             else if (taakType === 'dispenser') nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, true, huidigeGroep, 'docent');
             else if (taakType === 'klaartaak') nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, true, false, huidigeGroep, 'docent');
-            else { nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, false, huidigeGroep, 'docent'); if(taakKolomId === 'te-doen') nieuweTaak.classList.add('standaard-te-doen'); }
+            else { nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, false, huidigeGroep, 'docent'); }
             doelKolom.appendChild(nieuweTaak);
         });
 
@@ -1033,7 +1049,7 @@ function voegNieuweTaakToe() {
     }
 }
 
-// SLIM SCHOONMAKEN
+// SLIM SCHOONMAKEN (Oude bescherming voor 'standaard taken' definitief verwijderd!)
 document.getElementById('wis-bord-knop').addEventListener('click', async () => {
     if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de kluisjes en ingevulde reflecties van deze groep worden dan leeggemaakt!")) {
         
@@ -1042,7 +1058,8 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         wisKnop.style.opacity = "0.7";
         wisKnop.style.pointerEvents = "none";
 
-        document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak):not(.standaard-te-doen)').forEach(t => { 
+        // De nuke: wist ALLES behalve Vaste en Klaartaken
+        document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak)').forEach(t => { 
             if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); 
         });
         
@@ -1052,7 +1069,6 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
             if (klaarLijst.length === 0) taak.classList.remove('klaar'); 
         };
 
-        document.querySelectorAll('.standaard-te-doen').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('te-doen').appendChild(t); }});
         document.querySelectorAll('.vaste-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) wisKlaar(t); });
         document.querySelectorAll('.extra-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('klaartaken-lijst').appendChild(t); }});
 
