@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (LEGACY SCHOONMAAK UPDATE!)
+// script.js - De motor van onze weektaak (BRUTE-FORCE SCHOONMAAK UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -77,7 +77,6 @@ const werkDagen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 const wachtwoordenDatabase = {}; 
 let opgeslagenBorden = {}; 
 
-// --- URL Bladwijzer Functionaliteit ---
 window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlGroep = urlParams.get('groep');
@@ -95,7 +94,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- Google Sheets Functies ---
 async function haalDataUitGoogle(sheetNaam) {
     try {
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?sheet=${sheetNaam}`);
@@ -118,7 +116,6 @@ async function stuurDataNaarGoogle(payload) {
     }
 }
 
-// BORD OPSLAAN
 async function stuurBordNaarGoogle() {
     if (!huidigeGroep || !huidigeGebruiker) return;
     
@@ -148,7 +145,6 @@ async function stuurBordNaarGoogle() {
     });
 }
 
-// --- Initialisatie Lokaal ---
 function initLokaal() {
     for (let groepNaam in scholenDatabase) {
         let delen = groepNaam.split(' ');
@@ -167,7 +163,6 @@ function initLokaal() {
 }
 initLokaal();
 
-// --- Sync met Google Sheets ---
 async function syncMetGoogle() {
     const cloudWachtwoorden = await haalDataUitGoogle('wachtwoorden');
     if(cloudWachtwoorden) {
@@ -192,7 +187,6 @@ async function syncMetGoogle() {
 }
 syncMetGoogle(); 
 
-// --- Menu's & Navigatie ---
 kiesGroepSelect.addEventListener('change', () => {
     huidigeGroep = kiesGroepSelect.value;
     wieLogtInSelect.innerHTML = '';
@@ -232,7 +226,6 @@ function vulDynamischeCheckboxes() {
     });
 }
 
-// --- Wachtwoord Flow & ENTER Knoppen ---
 naarWachtwoordKnop.addEventListener('click', () => {
     if (kiesGroepSelect.value === "" || wieLogtInSelect.value === "") return alert("Kies eerst een groep en een naam!");
     huidigeGebruiker = wieLogtInSelect.value;
@@ -294,6 +287,7 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
         wachtwoordModal.style.display = 'none';
     }
 });
+sluitWachtwoordModal.addEventListener('click', () => { wachtwoordModal.style.display = 'none'; });
 
 // --- Daadwerkelijke Inlog & BORD LADEN ---
 async function voerSuccesvolleLoginUit() {
@@ -375,19 +369,27 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
-            // --- DE SLIMME EN STRENGE SYNC-LOGICA ---
-            const docentTaakIds = [];
-            const docentTaakNamen = [];
-            
+            // --- KEIHARDE EN SLIMME SYNC-LOGICA ---
+            let actueleDocentNamen = [];
+            let actueleDocentIds = [];
+
+            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft
             docentData.forEach(dTaak => {
-                docentTaakIds.push(dTaak.attrs.id);
-                docentTaakNamen.push(dTaak.attrs['data-taak-naam']);
+                if(dTaak.attrs.id) actueleDocentIds.push(dTaak.attrs.id);
+                if(dTaak.attrs['data-taak-naam']) actueleDocentNamen.push(dTaak.attrs['data-taak-naam'].trim().toLowerCase());
                 
-                // Voeg ontbrekende docent taken toe (op ID of als fallback op Naam)
+                // Voeg taken toe die het kind toevallig nog mist
                 let taakBestaat = document.getElementById(dTaak.attrs.id);
                 if (!taakBestaat) {
-                    let takenMetZelfdeNaam = Array.from(document.querySelectorAll(`.taak[data-taak-naam="${dTaak.attrs['data-taak-naam']}"]`));
-                    taakBestaat = takenMetZelfdeNaam.find(t => !t.classList.contains('kloon-taak'));
+                    let dNaam = dTaak.attrs['data-taak-naam'].trim().toLowerCase();
+                    let alleTaken = document.querySelectorAll('.taak:not(.kloon-taak)');
+                    for(let i=0; i<alleTaken.length; i++){
+                        let tNaam = (alleTaken[i].getAttribute('data-taak-naam') || '').trim().toLowerCase();
+                        if(tNaam === dNaam) {
+                            taakBestaat = alleTaken[i];
+                            break;
+                        }
+                    }
                 }
 
                 if (!taakBestaat) {
@@ -400,20 +402,26 @@ async function voerSuccesvolleLoginUit() {
                 }
             });
 
-            // Grote schoonmaak: Wis wat de docent heeft verwijderd!
+            // 2. Grote Schoonmaak: Vernietig spoken (zoals oude Topografie)
+            let bordAangepast = false;
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
                 let maker = taak.getAttribute('data-maker');
+                let naam = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
                 let isKlaartaak = taak.classList.contains('extra-taak');
-                let taakNaam = taak.getAttribute('data-taak-naam');
 
-                // Een taak kwam van de docent als: Hij als 'docent' is gemarkeerd, OF (voor oude taken zoals topografie) als er geen maker was en het geen klaartaak is.
+                // Als het GEEN eigen bedachte taak van de leerling is, moet hij voorkomen in de docentenlijst
                 if (maker === 'docent' || (!maker && !isKlaartaak)) {
-                    // Als de docent deze taak niet meer in zijn lijst heeft (niet op ID en niet op Naam) -> Gooi hem weg!
-                    if (!docentTaakIds.includes(taak.id) && !docentTaakNamen.includes(taakNaam)) {
-                        taak.remove();
+                    if (!actueleDocentNamen.includes(naam) && !actueleDocentIds.includes(taak.id)) {
+                        taak.remove(); // Genadeloos weg ermee!
+                        bordAangepast = true;
                     }
                 }
             });
+
+            // 3. Spook verwijderd? Sla direct het schone bord op in het kluisje van het kind!
+            if (bordAangepast) {
+                stuurBordNaarGoogle(); 
+            }
         }
     }
 
