@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (BRUTE-FORCE SCHOONMAAK UPDATE!)
+// script.js - De motor van onze weektaak (DEFINITIEVE ANTI-SPOOK UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -369,50 +369,44 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
-            // --- KEIHARDE EN SLIMME SYNC-LOGICA ---
+            // --- KEIHARDE EN SLIMME SYNC-LOGICA (Nu puur op NAAM) ---
             let actueleDocentNamen = [];
-            let actueleDocentIds = [];
+            let bordAangepast = false;
 
-            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft
+            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft aan namen
             docentData.forEach(dTaak => {
-                if(dTaak.attrs.id) actueleDocentIds.push(dTaak.attrs.id);
-                if(dTaak.attrs['data-taak-naam']) actueleDocentNamen.push(dTaak.attrs['data-taak-naam'].trim().toLowerCase());
-                
-                // Voeg taken toe die het kind toevallig nog mist
-                let taakBestaat = document.getElementById(dTaak.attrs.id);
-                if (!taakBestaat) {
+                if(dTaak.attrs['data-taak-naam']) {
                     let dNaam = dTaak.attrs['data-taak-naam'].trim().toLowerCase();
+                    actueleDocentNamen.push(dNaam);
+                    
+                    // Voeg taak toe als het kind deze naam nog helemaal niet heeft
                     let alleTaken = document.querySelectorAll('.taak:not(.kloon-taak)');
-                    for(let i=0; i<alleTaken.length; i++){
-                        let tNaam = (alleTaken[i].getAttribute('data-taak-naam') || '').trim().toLowerCase();
-                        if(tNaam === dNaam) {
-                            taakBestaat = alleTaken[i];
-                            break;
-                        }
-                    }
-                }
+                    let taakBestaat = Array.from(alleTaken).find(t => (t.getAttribute('data-taak-naam') || '').trim().toLowerCase() === dNaam);
 
-                if (!taakBestaat) {
-                    const nieuweTaak = document.createElement('div');
-                    for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
-                    if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
-                    nieuweTaak.innerHTML = dTaak.html;
-                    const doelKolom = document.getElementById(dTaak.kolom);
-                    if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
+                    if (!taakBestaat) {
+                        const nieuweTaak = document.createElement('div');
+                        for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
+                        if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
+                        nieuweTaak.innerHTML = dTaak.html;
+                        nieuweTaak.id = 'taak-' + globaleTaakId++; // Voorkom ID botsingen
+                        const doelKolom = document.getElementById(dTaak.kolom);
+                        if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
+                        bordAangepast = true;
+                    }
                 }
             });
 
             // 2. Grote Schoonmaak: Vernietig spoken (zoals oude Topografie)
-            let bordAangepast = false;
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
                 let maker = taak.getAttribute('data-maker');
                 let naam = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
                 let isKlaartaak = taak.classList.contains('extra-taak');
 
-                // Als het GEEN eigen bedachte taak van de leerling is, moet hij voorkomen in de docentenlijst
+                // Een taak is een docenten-taak als hij maker="docent" heeft OF als hij stokoud is (geen maker en geen klaartaak)
                 if (maker === 'docent' || (!maker && !isKlaartaak)) {
-                    if (!actueleDocentNamen.includes(naam) && !actueleDocentIds.includes(taak.id)) {
-                        taak.remove(); // Genadeloos weg ermee!
+                    // Staat de naam NIET meer in de actuele lijst van de docent?
+                    if (!actueleDocentNamen.includes(naam)) {
+                        taak.remove(); // Genadeloos weggooien!
                         bordAangepast = true;
                     }
                 }
