@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (VERFIJNING & REFLECTIE UPDATE!)
+// script.js - De motor van onze weektaak (TROTS-REFLECTIE UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -118,7 +118,7 @@ async function stuurDataNaarGoogle(payload) {
     }
 }
 
-// BORD OPSLAAN 
+// BORD OPSLAAN
 async function stuurBordNaarGoogle() {
     if (!huidigeGroep || !huidigeGebruiker) return;
     
@@ -160,7 +160,7 @@ function initLokaal() {
             wachtwoordenDatabase[leerling] = standaardWachtwoord;
             reflectieData[leerling] = {};
             werkDagen.forEach(dag => {
-                reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '', trots: '' }; // NIEUW: Trots toegevoegd!
+                reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '', trots: '' }; 
             });
         });
     }
@@ -184,7 +184,7 @@ async function syncMetGoogle() {
                     emotie: rij.emotie || '', 
                     lastig: rij.lastig || '', 
                     hulp: rij.hulp || '',
-                    trots: rij.trots || '' // NIEUW: Haalt trots op uit database
+                    trots: rij.trots || '' 
                 };
             }
         });
@@ -375,8 +375,6 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
-            // STRICTE SYNC LOGICA: We voegen docent-taken toe die het kind nog niet heeft, 
-            // EN we wissen alles wat de docent inmiddels zelf heeft verwijderd!
             const docentTaakIds = [];
             docentData.forEach(dTaak => {
                 docentTaakIds.push(dTaak.attrs.id);
@@ -423,7 +421,6 @@ function laadBordVanafData(takenData) {
             if(!isNaN(num) && num > maxId) maxId = num;
         }
         
-        // Zorg dat positie relatief is voor onze naamkaartjes styling
         taak.style.position = 'relative';
 
         const doelKolom = document.getElementById(data.kolom);
@@ -489,7 +486,6 @@ function laadReflectieBord() {
         });
         dagKaart.appendChild(moeilijkInput);
 
-        // NIEUW: De Trots vraag!
         const trotsInput = document.createElement('textarea');
         trotsInput.classList.add('reflectie-input');
         trotsInput.id = `input-trots-${dag}`;
@@ -524,7 +520,7 @@ function vulReflectieSchermVoorLeerling() {
         const data = reflectieData[huidigeGebruiker][dag];
         document.getElementById(`input-lastig-${dag}`).value = data.lastig;
         document.getElementById(`input-hulp-${dag}`).value = data.hulp;
-        document.getElementById(`input-trots-${dag}`).value = data.trots; // Nieuw!
+        document.getElementById(`input-trots-${dag}`).value = data.trots; 
         document.getElementById(`emotie-container-${dag}`).querySelectorAll('.emotie-knop').forEach(btn => {
             btn.classList.remove('actief');
             if (btn.innerText === data.emotie) btn.classList.add('actief');
@@ -682,6 +678,7 @@ function berekenVoortgang() {
     }
 }
 
+// DE FIX: De Trots vraag wordt nu correct in de pop-up gezet!
 function openLeerlingModal(leerling, afgerondeNamenLijst) {
     let takenHtml = afgerondeNamenLijst.length > 0 ? `<ul class="detail-taken-lijst">` + afgerondeNamenLijst.map(n => `<li>${n}</li>`).join('') + `</ul>` : `<p>Nog geen taken afgerond.</p>`;
     let reflectieHtml = '';
@@ -793,7 +790,6 @@ function verwerkLeerlingPrullenbakDrop() {
     if (gesleepteTaak) {
         if (gesleepteTaak.classList.contains('vaste-taak') || gesleepteTaak.classList.contains('dispenser-taak')) return alert("Let op: Deze taak mag je niet wissen!");
         if (gesleepteTaak.classList.contains('extra-taak')) {
-            // NIEUW: Controleren of de leerling de taak zelf getypt heeft
             if (gesleepteTaak.getAttribute('data-maker') === 'leerling') {
                 gesleepteTaak.remove(); 
             } else {
@@ -909,10 +905,8 @@ function bouwTaakElement(taakNaam, leerlingNaam = 'Iedereen', isExtra = false, i
     taakElement.setAttribute('data-groep', taakGroep); 
     taakElement.setAttribute('data-maker', maker);
 
-    // Zorg voor relatieve positionering zodat de kaartjes er goed op landen
     taakElement.style.position = 'relative';
 
-    // NIEUW: Naamlabel styling via JavaScript zonder de CSS te breken
     if (leerlingNaam !== 'Iedereen') {
         const label = document.createElement('div'); 
         label.classList.add('taak-leerling-label'); 
@@ -937,7 +931,6 @@ function bouwTaakElement(taakNaam, leerlingNaam = 'Iedereen', isExtra = false, i
     return taakElement;
 }
 
-// NIEUW: Ondertitel (subNaam) ingebouwd
 function bouwVasteTaakElement(hoofdNaam, subNaam, taakGroep = huidigeGroep, leerlingNaam = 'Iedereen') {
     const taakElement = document.createElement('div');
     taakElement.classList.add('taak', 'vaste-taak'); 
@@ -946,7 +939,7 @@ function bouwVasteTaakElement(hoofdNaam, subNaam, taakGroep = huidigeGroep, leer
     taakElement.setAttribute('data-taak-naam', subNaam ? `${hoofdNaam} (${subNaam})` : hoofdNaam); 
     taakElement.setAttribute('data-klaar-door', '');
     taakElement.setAttribute('data-groep', taakGroep); 
-    taakElement.setAttribute('data-maker', 'docent'); // Belangrijk voor het wissen!
+    taakElement.setAttribute('data-maker', 'docent'); 
     taakElement.setAttribute('draggable', 'true'); 
     taakElement.style.position = 'relative';
     
@@ -973,7 +966,6 @@ function bouwVasteTaakElement(hoofdNaam, subNaam, taakGroep = huidigeGroep, leer
 
 function laadStandaardInhoud() {
     if (!groepenGeinitialiseerd[huidigeGroep]) {
-        // Mocht je in de toekomst standaard taken willen aanmaken, zorg dat ze de structuur van hieronder volgen!
         groepenGeinitialiseerd[huidigeGroep] = true;
     }
 }
@@ -992,7 +984,7 @@ document.getElementById('nieuwe-taak-input').addEventListener('keypress', functi
 
 function voegNieuweTaakToe() {
     const nieuweTaakTekst = document.getElementById('nieuwe-taak-input').value.trim(); 
-    const ondertitelTekst = document.getElementById('taak-ondertitel-input').value.trim(); // Pakt de nieuwe ondertitel
+    const ondertitelTekst = document.getElementById('taak-ondertitel-input').value.trim(); 
     const taakType = document.getElementById('taak-type-select').value;
     let taakKolomId = taakType === 'klaartaak' ? 'klaartaken-lijst' : document.getElementById('taak-kolom-select').value;
     
