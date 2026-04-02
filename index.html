@@ -87,9 +87,11 @@
 
         <div id="docent-paneel" class="docent-paneel">
             <h3 style="margin-top: 0; color: var(--donkergroen);">Takenbeheer</h3>
-            <div class="invoer-groep" style="flex-wrap: wrap;">
+            <div class="invoer-groep" style="flex-wrap: wrap; gap: 10px;">
                 <input type="text" id="nieuwe-taak-input" placeholder="Typ hier de naam van de taak...">
                 
+                <input type="text" id="taak-ondertitel-input" class="login-selectie" style="margin-bottom: 0; width: auto; padding: 12px;" placeholder="Extra info (bijv. basistaak)...">
+
                 <select id="taak-type-select" class="login-selectie" style="margin-bottom: 0; width: auto; padding: 12px;">
                     <option value="flexibel">Normale taak (sleepbaar)</option>
                     <option value="vast">Vaste taak (onwisbaar)</option>
@@ -143,7 +145,7 @@
 
         <div id="reflectie-container" class="reflectie-container" style="display: none;">
             <h3 class="reflectie-titel">Terugblik op de week 📝</h3>
-            <p class="reflectie-uitleg">Hoe ging het vandaag? Klik op een smiley en vul in of je nog iets lastig vond of een hulpvraag hebt.</p>
+            <p class="reflectie-uitleg">Hoe ging het vandaag? Klik op een smiley en vul in of je nog iets lastig vond, trots op bent of een hulpvraag hebt.</p>
             <div class="reflectie-dagen-grid" id="reflectie-dagen-grid"></div>
         </div>
 

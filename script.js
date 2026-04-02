@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (ENTER-KNOP & STABIELE TOUCH UPDATE!)
+// script.js - De motor van onze weektaak (VERFIJNING & REFLECTIE UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -118,7 +118,7 @@ async function stuurDataNaarGoogle(payload) {
     }
 }
 
-// BORD OPSLAAN
+// BORD OPSLAAN 
 async function stuurBordNaarGoogle() {
     if (!huidigeGroep || !huidigeGebruiker) return;
     
@@ -160,7 +160,7 @@ function initLokaal() {
             wachtwoordenDatabase[leerling] = standaardWachtwoord;
             reflectieData[leerling] = {};
             werkDagen.forEach(dag => {
-                reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '' };
+                reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '', trots: '' }; // NIEUW: Trots toegevoegd!
             });
         });
     }
@@ -180,7 +180,12 @@ async function syncMetGoogle() {
     if(cloudReflecties) {
         cloudReflecties.forEach(rij => {
             if (reflectieData[rij.leerling] && reflectieData[rij.leerling][rij.dag]) {
-                reflectieData[rij.leerling][rij.dag] = { emotie: rij.emotie || '', lastig: rij.lastig || '', hulp: rij.hulp || '' };
+                reflectieData[rij.leerling][rij.dag] = { 
+                    emotie: rij.emotie || '', 
+                    lastig: rij.lastig || '', 
+                    hulp: rij.hulp || '',
+                    trots: rij.trots || '' // NIEUW: Haalt trots op uit database
+                };
             }
         });
     }
@@ -253,11 +258,8 @@ terugNaarNaamKnop.addEventListener('click', () => {
     inlogKeuzeSectie.style.display = 'block';
 });
 
-// NIEUW: Reageer op Enter-toets voor Docent
 docentWachtwoordInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        checkDocentWachtwoordKnop.click();
-    }
+    if (e.key === 'Enter') checkDocentWachtwoordKnop.click();
 });
 
 if(checkDocentWachtwoordKnop) {
@@ -267,11 +269,8 @@ if(checkDocentWachtwoordKnop) {
     });
 }
 
-// NIEUW: Reageer op Enter-toets voor Leerling
 leerlingWachtwoordInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        checkLeerlingWachtwoordKnop.click();
-    }
+    if (e.key === 'Enter') checkLeerlingWachtwoordKnop.click();
 });
 
 if(checkLeerlingWachtwoordKnop) {
@@ -376,6 +375,8 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
+            // STRICTE SYNC LOGICA: We voegen docent-taken toe die het kind nog niet heeft, 
+            // EN we wissen alles wat de docent inmiddels zelf heeft verwijderd!
             const docentTaakIds = [];
             docentData.forEach(dTaak => {
                 docentTaakIds.push(dTaak.attrs.id);
@@ -422,6 +423,9 @@ function laadBordVanafData(takenData) {
             if(!isNaN(num) && num > maxId) maxId = num;
         }
         
+        // Zorg dat positie relatief is voor onze naamkaartjes styling
+        taak.style.position = 'relative';
+
         const doelKolom = document.getElementById(data.kolom);
         if(doelKolom) {
             doelKolom.appendChild(taak);
@@ -466,7 +470,7 @@ function laadReflectieBord() {
                 btn.classList.add('actief');
                 if (huidigeGebruiker !== 'Docent') {
                     reflectieData[huidigeGebruiker][dag].emotie = emotie;
-                    stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: emotie, lastig: reflectieData[huidigeGebruiker][dag].lastig, hulp: reflectieData[huidigeGebruiker][dag].hulp }});
+                    stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: emotie, lastig: reflectieData[huidigeGebruiker][dag].lastig, hulp: reflectieData[huidigeGebruiker][dag].hulp, trots: reflectieData[huidigeGebruiker][dag].trots }});
                 }
             });
             emotieContainer.appendChild(btn);
@@ -480,10 +484,23 @@ function laadReflectieBord() {
         moeilijkInput.addEventListener('change', (e) => {
             if (huidigeGebruiker !== 'Docent') {
                 reflectieData[huidigeGebruiker][dag].lastig = e.target.value;
-                stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: reflectieData[huidigeGebruiker][dag].emotie, lastig: e.target.value, hulp: reflectieData[huidigeGebruiker][dag].hulp }});
+                stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: reflectieData[huidigeGebruiker][dag].emotie, lastig: e.target.value, hulp: reflectieData[huidigeGebruiker][dag].hulp, trots: reflectieData[huidigeGebruiker][dag].trots }});
             }
         });
         dagKaart.appendChild(moeilijkInput);
+
+        // NIEUW: De Trots vraag!
+        const trotsInput = document.createElement('textarea');
+        trotsInput.classList.add('reflectie-input');
+        trotsInput.id = `input-trots-${dag}`;
+        trotsInput.placeholder = 'Waar ben je trots op?';
+        trotsInput.addEventListener('change', (e) => {
+            if (huidigeGebruiker !== 'Docent') {
+                reflectieData[huidigeGebruiker][dag].trots = e.target.value;
+                stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: reflectieData[huidigeGebruiker][dag].emotie, lastig: reflectieData[huidigeGebruiker][dag].lastig, hulp: reflectieData[huidigeGebruiker][dag].hulp, trots: e.target.value }});
+            }
+        });
+        dagKaart.appendChild(trotsInput);
         
         const hulpInput = document.createElement('textarea');
         hulpInput.classList.add('reflectie-input');
@@ -492,10 +509,11 @@ function laadReflectieBord() {
         hulpInput.addEventListener('change', (e) => {
             if (huidigeGebruiker !== 'Docent') {
                 reflectieData[huidigeGebruiker][dag].hulp = e.target.value;
-                stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: reflectieData[huidigeGebruiker][dag].emotie, lastig: reflectieData[huidigeGebruiker][dag].lastig, hulp: e.target.value }});
+                stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: huidigeGebruiker+"_"+dag, leerling: huidigeGebruiker, dag: dag, emotie: reflectieData[huidigeGebruiker][dag].emotie, lastig: reflectieData[huidigeGebruiker][dag].lastig, hulp: e.target.value, trots: reflectieData[huidigeGebruiker][dag].trots }});
             }
         });
         dagKaart.appendChild(hulpInput);
+        
         reflectieGrid.appendChild(dagKaart);
     });
 }
@@ -506,6 +524,7 @@ function vulReflectieSchermVoorLeerling() {
         const data = reflectieData[huidigeGebruiker][dag];
         document.getElementById(`input-lastig-${dag}`).value = data.lastig;
         document.getElementById(`input-hulp-${dag}`).value = data.hulp;
+        document.getElementById(`input-trots-${dag}`).value = data.trots; // Nieuw!
         document.getElementById(`emotie-container-${dag}`).querySelectorAll('.emotie-knop').forEach(btn => {
             btn.classList.remove('actief');
             if (btn.innerText === data.emotie) btn.classList.add('actief');
@@ -668,8 +687,8 @@ function openLeerlingModal(leerling, afgerondeNamenLijst) {
     let reflectieHtml = '';
     werkDagen.forEach(dag => {
         const rData = reflectieData[leerling][dag];
-        if (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '') {
-            reflectieHtml += `<div class="detail-dag-reflectie"><strong>${dag} ${rData.emotie}</strong>${rData.lastig ? `<p><em>Lastig:</em> ${rData.lastig}</p>` : ''}${rData.hulp ? `<p><em>Hulpvraag:</em> ${rData.hulp}</p>` : ''}</div>`;
+        if (rData.emotie !== '' || rData.lastig !== '' || rData.trots !== '' || rData.hulp !== '') {
+            reflectieHtml += `<div class="detail-dag-reflectie"><strong>${dag} ${rData.emotie}</strong>${rData.lastig ? `<p><em>Lastig:</em> ${rData.lastig}</p>` : ''}${rData.trots ? `<p><em>Trots op:</em> ${rData.trots}</p>` : ''}${rData.hulp ? `<p><em>Hulpvraag:</em> ${rData.hulp}</p>` : ''}</div>`;
         }
     });
     if (reflectieHtml === '') reflectieHtml = `<p>Nog geen reflecties ingevuld.</p>`;
@@ -716,7 +735,6 @@ function handleTouchEnd(e) {
     if (!activeTouchTaak) return;
     const touch = e.changedTouches ? e.changedTouches[0] : null;
     
-    // Herstel ALTIJD de doorzichtigheid!
     activeTouchTaak.style.opacity = '1';
 
     if (touchKloon) {
@@ -775,9 +793,15 @@ function verwerkLeerlingPrullenbakDrop() {
     if (gesleepteTaak) {
         if (gesleepteTaak.classList.contains('vaste-taak') || gesleepteTaak.classList.contains('dispenser-taak')) return alert("Let op: Deze taak mag je niet wissen!");
         if (gesleepteTaak.classList.contains('extra-taak')) {
-            let klaarLijst = (gesleepteTaak.getAttribute('data-klaar-door') || '').split(',').filter(n => n !== huidigeGebruiker);
-            gesleepteTaak.setAttribute('data-klaar-door', klaarLijst.join(',')); gesleepteTaak.classList.remove('klaar');
-            document.getElementById('klaartaken-lijst').appendChild(gesleepteTaak); berekenVoortgang(); return;
+            // NIEUW: Controleren of de leerling de taak zelf getypt heeft
+            if (gesleepteTaak.getAttribute('data-maker') === 'leerling') {
+                gesleepteTaak.remove(); 
+            } else {
+                let klaarLijst = (gesleepteTaak.getAttribute('data-klaar-door') || '').split(',').filter(n => n !== huidigeGebruiker);
+                gesleepteTaak.setAttribute('data-klaar-door', klaarLijst.join(',')); gesleepteTaak.classList.remove('klaar');
+                document.getElementById('klaartaken-lijst').appendChild(gesleepteTaak); 
+            }
+            berekenVoortgang(); return;
         }
         if (gesleepteTaak.classList.contains('kloon-taak')) { gesleepteTaak.remove(); updateTaakZichtbaarheid(); berekenVoortgang(); return; }
         alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
@@ -791,7 +815,7 @@ function maakTaakSleepbaar(taak) {
     });
     taak.addEventListener('dragend', function() {
         setTimeout(() => {
-            taak.style.opacity = '1'; // Altijd terug naar 1 bij loslaten muis
+            taak.style.opacity = '1'; 
             if(taak.classList.contains('extra-taak') && taak.getAttribute('draggable') === 'false') taak.style.opacity = '0.5';
             gesleepteTaak = null;
         }, 0);
@@ -828,8 +852,6 @@ function koppelTaakEvents(taak) {
     taak.addEventListener('touchstart', handleTouchStart, {passive: false});
     taak.addEventListener('touchmove', handleTouchMove, {passive: false});
     taak.addEventListener('touchend', handleTouchEnd);
-    
-    // NIEUW: Deze voorkomt dat blokken doorzichtig blijven op Chromebooks!
     taak.addEventListener('touchcancel', handleTouchEnd); 
 
     if (!taak.classList.contains('dispenser-taak')) {
@@ -887,31 +909,63 @@ function bouwTaakElement(taakNaam, leerlingNaam = 'Iedereen', isExtra = false, i
     taakElement.setAttribute('data-groep', taakGroep); 
     taakElement.setAttribute('data-maker', maker);
 
+    // Zorg voor relatieve positionering zodat de kaartjes er goed op landen
+    taakElement.style.position = 'relative';
+
+    // NIEUW: Naamlabel styling via JavaScript zonder de CSS te breken
     if (leerlingNaam !== 'Iedereen') {
-        const label = document.createElement('div'); label.classList.add('taak-leerling-label'); label.innerText = leerlingNaam; taakElement.appendChild(label);
+        const label = document.createElement('div'); 
+        label.classList.add('taak-leerling-label'); 
+        label.style.cssText = "background-color: var(--oranje); color: white; font-size: 10px; padding: 2px 5px; border-radius: 3px; position: absolute; top: -10px; right: -10px; z-index: 10;";
+        label.innerText = leerlingNaam; 
+        taakElement.appendChild(label);
     }
+    
     if (isExtra) {
-        const extraIcoon = document.createElement('div'); extraIcoon.classList.add('taak-leerling-label'); extraIcoon.style.backgroundColor = '#cca300'; extraIcoon.innerText = 'Klaartaak 🎮'; taakElement.appendChild(extraIcoon);
+        const extraIcoon = document.createElement('div'); 
+        extraIcoon.classList.add('taak-leerling-label'); 
+        extraIcoon.style.cssText = "background-color: #cca300; color: white; font-size: 10px; padding: 2px 5px; border-radius: 3px; position: absolute; top: -10px; right: -10px; z-index: 10;";
+        extraIcoon.innerText = 'Klaartaak 🎮'; 
+        taakElement.appendChild(extraIcoon);
     }
-    const tekst = document.createElement('span'); tekst.innerText = taakNaam; taakElement.appendChild(tekst);
+    
+    const tekst = document.createElement('span'); 
+    tekst.innerText = taakNaam; 
+    taakElement.appendChild(tekst);
     
     koppelTaakEvents(taakElement);
     return taakElement;
 }
 
-function bouwVasteTaakElement(hoofdNaam, subNaam, taakGroep = huidigeGroep) {
+// NIEUW: Ondertitel (subNaam) ingebouwd
+function bouwVasteTaakElement(hoofdNaam, subNaam, taakGroep = huidigeGroep, leerlingNaam = 'Iedereen') {
     const taakElement = document.createElement('div');
     taakElement.classList.add('taak', 'vaste-taak'); 
     taakElement.id = 'taak-' + globaleTaakId++;
-    taakElement.setAttribute('data-leerling', 'Iedereen'); 
+    taakElement.setAttribute('data-leerling', leerlingNaam); 
     taakElement.setAttribute('data-taak-naam', subNaam ? `${hoofdNaam} (${subNaam})` : hoofdNaam); 
     taakElement.setAttribute('data-klaar-door', '');
     taakElement.setAttribute('data-groep', taakGroep); 
+    taakElement.setAttribute('data-maker', 'docent'); // Belangrijk voor het wissen!
     taakElement.setAttribute('draggable', 'true'); 
+    taakElement.style.position = 'relative';
     
     const labelElement = document.createElement('div');
-    labelElement.classList.add('taak-leerling-label'); labelElement.style.backgroundColor = 'var(--donkergroen)'; labelElement.innerText = 'Vaste Taak'; taakElement.appendChild(labelElement);
-    const tekstElement = document.createElement('span'); tekstElement.innerHTML = subNaam ? `<strong>${hoofdNaam}</strong><br><span style="font-size: 0.85em; opacity: 0.8;">${subNaam}</span>` : `<strong>${hoofdNaam}</strong>`; taakElement.appendChild(tekstElement);
+    labelElement.classList.add('taak-leerling-label'); 
+    labelElement.style.cssText = "background-color: var(--donkergroen); color: white; font-size: 10px; padding: 2px 5px; border-radius: 3px; position: absolute; top: -10px; right: -10px; z-index: 10;";
+    labelElement.innerText = 'Vaste Taak'; 
+    taakElement.appendChild(labelElement);
+
+    if (leerlingNaam !== 'Iedereen') {
+        const specLabel = document.createElement('div');
+        specLabel.style.cssText = "background-color: var(--oranje); color: white; font-size: 10px; padding: 2px 5px; border-radius: 3px; position: absolute; top: -10px; right: 55px; z-index: 10;";
+        specLabel.innerText = leerlingNaam;
+        taakElement.appendChild(specLabel);
+    }
+
+    const tekstElement = document.createElement('span'); 
+    tekstElement.innerHTML = subNaam ? `<strong>${hoofdNaam}</strong><br><span style="font-size: 0.85em; opacity: 0.8;">${subNaam}</span>` : `<strong>${hoofdNaam}</strong>`; 
+    taakElement.appendChild(tekstElement);
     
     koppelTaakEvents(taakElement);
     return taakElement;
@@ -919,20 +973,7 @@ function bouwVasteTaakElement(hoofdNaam, subNaam, taakGroep = huidigeGroep) {
 
 function laadStandaardInhoud() {
     if (!groepenGeinitialiseerd[huidigeGroep]) {
-        if (huidigeGroep === 'Groep 8 oranje') {
-            const dagen = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag'];
-            dagen.forEach(dagNaam => {
-                document.getElementById(dagNaam).appendChild(bouwVasteTaakElement('Rekenen', 'basistaak', huidigeGroep));
-                document.getElementById(dagNaam).appendChild(bouwVasteTaakElement('Spelling', 'basisles', huidigeGroep));
-            });
-            const teDoenKolom = document.getElementById('te-doen');
-            ['Rekenen peiltaken', 'Woordzoeker Staal'].forEach(n => {
-                const taak = bouwTaakElement(n, 'Iedereen', false, false, huidigeGroep, 'docent');
-                taak.classList.add('standaard-te-doen'); teDoenKolom.appendChild(taak);
-            });
-            ['Rekenen eigen taken', 'Staal oefensoftware'].forEach(n => teDoenKolom.appendChild(bouwTaakElement(n, 'Iedereen', false, true, huidigeGroep, 'docent')));
-            ['Minecraft Education', 'Thema onderzoek', 'Tekenen'].forEach(n => document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(n, 'Iedereen', true, false, huidigeGroep, 'docent')));
-        }
+        // Mocht je in de toekomst standaard taken willen aanmaken, zorg dat ze de structuur van hieronder volgen!
         groepenGeinitialiseerd[huidigeGroep] = true;
     }
 }
@@ -951,6 +992,7 @@ document.getElementById('nieuwe-taak-input').addEventListener('keypress', functi
 
 function voegNieuweTaakToe() {
     const nieuweTaakTekst = document.getElementById('nieuwe-taak-input').value.trim(); 
+    const ondertitelTekst = document.getElementById('taak-ondertitel-input').value.trim(); // Pakt de nieuwe ondertitel
     const taakType = document.getElementById('taak-type-select').value;
     let taakKolomId = taakType === 'klaartaak' ? 'klaartaken-lijst' : document.getElementById('taak-kolom-select').value;
     
@@ -965,7 +1007,7 @@ function voegNieuweTaakToe() {
 
         gekozenLeerlingen.forEach(leerling => {
             let nieuweTaak;
-            if (taakType === 'vast') { nieuweTaak = bouwVasteTaakElement(nieuweTaakTekst, '', huidigeGroep); nieuweTaak.setAttribute('data-leerling', leerling); }
+            if (taakType === 'vast') { nieuweTaak = bouwVasteTaakElement(nieuweTaakTekst, ondertitelTekst, huidigeGroep, leerling); }
             else if (taakType === 'dispenser') nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, true, huidigeGroep, 'docent');
             else if (taakType === 'klaartaak') nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, true, false, huidigeGroep, 'docent');
             else { nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, false, huidigeGroep, 'docent'); if(taakKolomId === 'te-doen') nieuweTaak.classList.add('standaard-te-doen'); }
@@ -973,6 +1015,7 @@ function voegNieuweTaakToe() {
         });
 
         document.getElementById('nieuwe-taak-input').value = ''; 
+        document.getElementById('taak-ondertitel-input').value = ''; 
         updateTaakZichtbaarheid(); berekenVoortgang(); 
     }
 }
@@ -1006,9 +1049,9 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
 
             for (const dag of werkDagen) {
                 const rData = reflectieData[leerling][dag];
-                if (rData && (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '')) {
-                    reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '' };
-                    await stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: leerling + "_" + dag, leerling: leerling, dag: dag, emotie: '', lastig: '', hulp: '' }});
+                if (rData && (rData.emotie !== '' || rData.lastig !== '' || rData.hulp !== '' || rData.trots !== '')) {
+                    reflectieData[leerling][dag] = { emotie: '', lastig: '', hulp: '', trots: '' };
+                    await stuurDataNaarGoogle({ sheet: 'reflecties', row: { id: leerling + "_" + dag, leerling: leerling, dag: dag, emotie: '', lastig: '', hulp: '', trots: '' }});
                 }
             }
             
@@ -1049,7 +1092,7 @@ if(handmatigOpslaanKnop) {
 const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
 if(downloadOverzichtKnop) {
     downloadOverzichtKnop.addEventListener('click', () => {
-        let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Ma Emotie;Ma Lastig;Ma Hulp;Di Emotie;Di Lastig;Di Hulp;Wo Emotie;Wo Lastig;Wo Hulp;Do Emotie;Do Lastig;Do Hulp;Vr Emotie;Vr Lastig;Vr Hulp\n";
+        let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Ma Emotie;Ma Lastig;Ma Trots;Ma Hulp;Di Emotie;Di Lastig;Di Trots;Di Hulp;Wo Emotie;Wo Lastig;Wo Trots;Wo Hulp;Do Emotie;Do Lastig;Do Trots;Do Hulp;Vr Emotie;Vr Lastig;Vr Trots;Vr Hulp\n";
 
         const baseTasks = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                     .filter(t => t.getAttribute('data-groep') === huidigeGroep);
@@ -1081,9 +1124,10 @@ if(downloadOverzichtKnop) {
             let row = [leerling, klaar, totaal, percentage + "%"];
             
             werkDagen.forEach(dag => {
-                const rData = reflectieData[leerling] && reflectieData[leerling][dag] ? reflectieData[leerling][dag] : {emotie: '', lastig: '', hulp: ''};
+                const rData = reflectieData[leerling] && reflectieData[leerling][dag] ? reflectieData[leerling][dag] : {emotie: '', lastig: '', hulp: '', trots: ''};
                 row.push(escapeCSV(rData.emotie));
                 row.push(escapeCSV(rData.lastig));
+                row.push(escapeCSV(rData.trots));
                 row.push(escapeCSV(rData.hulp));
             });
 
