@@ -179,6 +179,21 @@
         </div>
     </div>
 
+    <div id="edit-taak-modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center;">
+        <div class="modal-content" style="background-color: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center; position: relative; border: 3px solid var(--donkergroen);">
+            <span class="sluit-modal" id="sluit-edit-modal" style="position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; color: red;">&times;</span>
+            <h3 style="margin-top: 0; color: var(--donkergroen);">Taak aanpassen</h3>
+            <p style="margin-bottom: 15px; font-size: 0.9em;">Pas hier de naam of les aan voor de nieuwe week.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="edit-taak-naam-input" class="login-selectie" style="width: 100%; box-sizing: border-box; margin: 0;" placeholder="Naam van de taak...">
+                <input type="text" id="edit-taak-ondertitel-input" class="login-selectie" style="width: 100%; box-sizing: border-box; margin: 0;" placeholder="Extra info (bijv. les 3)...">
+            </div>
+            
+            <button id="opslaan-edit-knop" style="width: 100%; background-color: var(--donkergroen); color: white; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; border: none;">Wijzigingen Opslaan</button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

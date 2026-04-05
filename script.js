@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (GENADELOZE SCHOONMAAK UPDATE!)
+// script.js - De motor van onze weektaak (POTLOOD UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -50,6 +50,14 @@ const reflectieContainer = document.getElementById('reflectie-container');
 const leerlingModal = document.getElementById('leerling-modal');
 const modalInhoud = document.getElementById('modal-leerling-inhoud');
 const sluitModalKnop = document.getElementById('sluit-modal');
+
+// NIEUWE ELEMENTEN VOOR HET POTLOODJE
+const editTaakModal = document.getElementById('edit-taak-modal');
+const sluitEditModal = document.getElementById('sluit-edit-modal');
+const opslaanEditKnop = document.getElementById('opslaan-edit-knop');
+const editNaamInput = document.getElementById('edit-taak-naam-input');
+const editOndertitelInput = document.getElementById('edit-taak-ondertitel-input');
+let actieveEditTaak = null;
 
 // --- Database ---
 const scholenDatabase = {
@@ -287,7 +295,6 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
         wachtwoordModal.style.display = 'none';
     }
 });
-sluitWachtwoordModal.addEventListener('click', () => { wachtwoordModal.style.display = 'none'; });
 
 // --- Daadwerkelijke Inlog & BORD LADEN ---
 async function voerSuccesvolleLoginUit() {
@@ -312,8 +319,9 @@ async function voerSuccesvolleLoginUit() {
     opgeslagenBorden = {}; 
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
-            // FIX: Zonder "if" blok pakt hij nu áltijd de állerlaatste en meest actuele data
-            try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
+            if (!opgeslagenBorden[rij.groep]) {
+                try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
+            }
         }
     });
 
@@ -370,29 +378,24 @@ async function voerSuccesvolleLoginUit() {
         } else {
             laadBordVanafData(studentData);
             
-            // --- KEIHARDE EN SLIMME SYNC-LOGICA ---
             let actueleDocentNamen = [];
             let bordAangepast = false;
 
-            // 1. Verzamel EXACT wat de docent NU op zijn bord heeft staan
             docentData.forEach(dTaak => {
                 let dNaamAttr = dTaak.attrs['data-taak-naam'];
-                
-                // Valback: we lezen de keiharde tekst in het blokje af als de data-naam ontbreekt
                 let tempDiv = document.createElement('div');
                 tempDiv.innerHTML = dTaak.html;
-                let dTxt = tempDiv.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                let dTxt = tempDiv.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
                 
                 let finalNaam = (dNaamAttr ? dNaamAttr.trim().toLowerCase() : dTxt);
                 if (finalNaam) actueleDocentNamen.push(finalNaam);
                 
-                // Kijken of we deze taak nog moeten TOEVOEGEN bij de leerling
                 let taakBestaat = document.getElementById(dTaak.attrs.id);
                 if (!taakBestaat) {
                     let alleTaken = document.querySelectorAll('.taak:not(.kloon-taak)');
                     taakBestaat = Array.from(alleTaken).find(t => {
                         let tAttr = (t.getAttribute('data-taak-naam') || '').trim().toLowerCase();
-                        let tTxt = t.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                        let tTxt = t.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
                         return (tAttr === finalNaam) || (tTxt === finalNaam);
                     });
                 }
@@ -409,25 +412,22 @@ async function voerSuccesvolleLoginUit() {
                 }
             });
 
-            // 2. Grote Schoonmaak: Vernietig alle spoken!
             document.querySelectorAll('.taak:not(.kloon-taak)').forEach(taak => {
                 let maker = taak.getAttribute('data-maker');
-                if (maker === 'leerling') return; // Blijf van eigen bedachte taken af
+                if (maker === 'leerling') return; 
 
                 let naamAttr = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
-                let txtNaam = taak.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                let txtNaam = taak.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
 
-                // Controleer de actuele docentenlijst met zowel het labeltje als de kale tekst
                 if (naamAttr && !actueleDocentNamen.includes(naamAttr) && !actueleDocentNamen.includes(txtNaam)) {
-                    taak.remove(); // Staat hij nergens meer in de docentenlijst? WEG ERMEE!
+                    taak.remove(); 
                     bordAangepast = true;
                 } else if (!naamAttr && !actueleDocentNamen.includes(txtNaam)) {
-                    taak.remove(); // Zelfs een spook zónder labeltje wordt nu herkend en verwijderd
+                    taak.remove(); 
                     bordAangepast = true;
                 }
             });
 
-            // 3. Als we spoken hebben gewist, dwingen we het kinderklemmetje direct om de schone staat op te slaan
             if (bordAangepast) {
                 stuurBordNaarGoogle(); 
             }
@@ -601,6 +601,11 @@ function updateTaakZichtbaarheid() {
             else taak.style.display = 'none'; 
         }
     });
+    
+    // NIEUW: Toon het potloodje alleen aan docenten
+    document.querySelectorAll('.docent-only-edit').forEach(btn => {
+        btn.style.display = (huidigeGebruiker === 'Docent') ? 'block' : 'none';
+    });
 }
 
 function berekenVoortgang() {
@@ -730,8 +735,81 @@ function openLeerlingModal(leerling, afgerondeNamenLijst) {
     leerlingModal.style.display = 'flex';
 }
 
-window.addEventListener('click', (e) => { if (e.target === leerlingModal) leerlingModal.style.display = 'none'; if (e.target === wachtwoordModal) wachtwoordModal.style.display = 'none'; });
-sluitModalKnop.addEventListener('click', () => { leerlingModal.style.display = 'none'; });
+// NIEUW: De logica voor de Edit Popup 
+function openEditModal(taak) {
+    actieveEditTaak = taak;
+    let volledigeNaam = taak.getAttribute('data-taak-naam') || '';
+    let isVast = taak.classList.contains('vaste-taak');
+
+    if (isVast) {
+        let match = volledigeNaam.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+        editNaamInput.value = match[1] ? match[1].trim() : volledigeNaam;
+        editOndertitelInput.value = match[2] ? match[2].trim() : '';
+        editOndertitelInput.style.display = 'block';
+    } else {
+        editNaamInput.value = volledigeNaam;
+        editOndertitelInput.value = '';
+        editOndertitelInput.style.display = 'none'; 
+    }
+
+    editTaakModal.style.display = 'flex';
+}
+
+if (opslaanEditKnop) {
+    opslaanEditKnop.addEventListener('click', async () => {
+        if (!actieveEditTaak) return;
+
+        let nieuweNaam = editNaamInput.value.trim();
+        let nieuweOndertitel = editOndertitelInput.value.trim();
+
+        if (nieuweNaam === '') {
+            alert("Vul een taaknaam in.");
+            return;
+        }
+
+        let isVast = actieveEditTaak.classList.contains('vaste-taak');
+        let fullNaam = (isVast && nieuweOndertitel) ? `${nieuweNaam} (${nieuweOndertitel})` : nieuweNaam;
+
+        actieveEditTaak.setAttribute('data-taak-naam', fullNaam);
+
+        // Zoek de juiste tekst en pas hem aan
+        let tekstSpan = Array.from(actieveEditTaak.children).find(child => child.tagName.toLowerCase() === 'span' && child.className === '');
+        if (tekstSpan) {
+            if (isVast && nieuweOndertitel) {
+                tekstSpan.innerHTML = `<strong>${nieuweNaam}</strong><br><span style="font-size: 0.85em; opacity: 0.8;">${nieuweOndertitel}</span>`;
+            } else if (isVast) {
+                tekstSpan.innerHTML = `<strong>${nieuweNaam}</strong>`;
+            } else {
+                tekstSpan.innerText = nieuweNaam;
+            }
+        }
+
+        editTaakModal.style.display = 'none';
+        actieveEditTaak = null;
+
+        berekenVoortgang();
+        
+        // Sla direct de wijziging veilig op in Google Sheets!
+        if(handmatigOpslaanKnop) {
+            handmatigOpslaanKnop.innerText = "⏳ Opslaan...";
+            handmatigOpslaanKnop.style.opacity = "0.7";
+        }
+        await stuurBordNaarGoogle(); 
+        if(handmatigOpslaanKnop) {
+            handmatigOpslaanKnop.innerText = "✅ Opgeslagen!";
+            handmatigOpslaanKnop.style.opacity = "1";
+            setTimeout(() => { handmatigOpslaanKnop.innerText = "💾 Opslaan"; }, 2000);
+        }
+    });
+}
+
+window.addEventListener('click', (e) => { 
+    if (e.target === leerlingModal) leerlingModal.style.display = 'none'; 
+    if (e.target === wachtwoordModal) wachtwoordModal.style.display = 'none'; 
+    if (e.target === editTaakModal) editTaakModal.style.display = 'none'; // Sluit ook als je buiten het witte vlak klikt
+});
+if (sluitModalKnop) sluitModalKnop.addEventListener('click', () => { leerlingModal.style.display = 'none'; });
+if (sluitEditModal) sluitEditModal.addEventListener('click', () => { editTaakModal.style.display = 'none'; });
 
 // === TOUCH EN DRAG LOGICA (CHROMBOOKS/IPADS) ===
 let activeTouchTaak = null;
@@ -887,10 +965,31 @@ function koppelTaakEvents(taak) {
     taak.addEventListener('touchend', handleTouchEnd);
     taak.addEventListener('touchcancel', handleTouchEnd); 
 
+    // NIEUW: Potloodje bouwen als deze nog niet bestaat op een docenten taak
+    if (!taak.querySelector('.docent-only-edit') && taak.getAttribute('data-maker') !== 'leerling') {
+        const editBtn = document.createElement('div');
+        editBtn.classList.add('docent-only-edit');
+        editBtn.style.cssText = "position: absolute; bottom: 5px; right: 5px; cursor: pointer; font-size: 14px; z-index: 10; display: none; background: white; border-radius: 50%; padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); line-height: 1;";
+        editBtn.innerText = '✏️';
+        taak.appendChild(editBtn);
+    }
+
+    const editBtn = taak.querySelector('.docent-only-edit');
+    if (editBtn) {
+        // Om dubbele klik-events te voorkomen vervangen we de knop even onzichtbaar
+        let newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        newEditBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Voorkom dat de taak groen kleurt of sleept
+            if (huidigeGebruiker !== 'Docent') return;
+            openEditModal(taak);
+        });
+    }
+
     if (!taak.classList.contains('dispenser-taak')) {
         taak.onclick = function(e) {
             if (huidigeGebruiker === 'Docent') return;
-            if (e.target.closest('.teller-knop')) return; 
+            if (e.target.closest('.teller-knop') || e.target.closest('.docent-only-edit')) return; 
             let klaarLijst = (taak.getAttribute('data-klaar-door') || '').split(',').filter(n => n);
             if (klaarLijst.includes(huidigeGebruiker)) {
                 klaarLijst = klaarLijst.filter(n => n !== huidigeGebruiker);
@@ -1049,7 +1148,7 @@ function voegNieuweTaakToe() {
     }
 }
 
-// SLIM SCHOONMAKEN (Oude bescherming voor 'standaard taken' definitief verwijderd!)
+// SLIM SCHOONMAKEN 
 document.getElementById('wis-bord-knop').addEventListener('click', async () => {
     if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de kluisjes en ingevulde reflecties van deze groep worden dan leeggemaakt!")) {
         
@@ -1058,7 +1157,6 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         wisKnop.style.opacity = "0.7";
         wisKnop.style.pointerEvents = "none";
 
-        // De nuke: wist ALLES behalve Vaste en Klaartaken
         document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak)').forEach(t => { 
             if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); 
         });
