@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (POTLOOD UPDATE!)
+// script.js - De motor van onze weektaak (TE DOEN & POTLOOD UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -51,7 +51,6 @@ const leerlingModal = document.getElementById('leerling-modal');
 const modalInhoud = document.getElementById('modal-leerling-inhoud');
 const sluitModalKnop = document.getElementById('sluit-modal');
 
-// NIEUWE ELEMENTEN VOOR HET POTLOODJE
 const editTaakModal = document.getElementById('edit-taak-modal');
 const sluitEditModal = document.getElementById('sluit-edit-modal');
 const opslaanEditKnop = document.getElementById('opslaan-edit-knop');
@@ -602,7 +601,6 @@ function updateTaakZichtbaarheid() {
         }
     });
     
-    // NIEUW: Toon het potloodje alleen aan docenten
     document.querySelectorAll('.docent-only-edit').forEach(btn => {
         btn.style.display = (huidigeGebruiker === 'Docent') ? 'block' : 'none';
     });
@@ -735,23 +733,14 @@ function openLeerlingModal(leerling, afgerondeNamenLijst) {
     leerlingModal.style.display = 'flex';
 }
 
-// NIEUW: De logica voor de Edit Popup 
 function openEditModal(taak) {
     actieveEditTaak = taak;
     let volledigeNaam = taak.getAttribute('data-taak-naam') || '';
-    let isVast = taak.classList.contains('vaste-taak');
-
-    if (isVast) {
-        let match = volledigeNaam.match(/^(.*?)(?:\s*\((.*?)\))?$/);
-        editNaamInput.value = match[1] ? match[1].trim() : volledigeNaam;
-        editOndertitelInput.value = match[2] ? match[2].trim() : '';
-        editOndertitelInput.style.display = 'block';
-    } else {
-        editNaamInput.value = volledigeNaam;
-        editOndertitelInput.value = '';
-        editOndertitelInput.style.display = 'none'; 
-    }
-
+    
+    let match = volledigeNaam.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+    editNaamInput.value = match[1] ? match[1].trim() : volledigeNaam;
+    editOndertitelInput.value = match[2] ? match[2].trim() : '';
+    
     editTaakModal.style.display = 'flex';
 }
 
@@ -768,19 +757,20 @@ if (opslaanEditKnop) {
         }
 
         let isVast = actieveEditTaak.classList.contains('vaste-taak');
-        let fullNaam = (isVast && nieuweOndertitel) ? `${nieuweNaam} (${nieuweOndertitel})` : nieuweNaam;
+        let fullNaam = nieuweOndertitel ? `${nieuweNaam} (${nieuweOndertitel})` : nieuweNaam;
 
         actieveEditTaak.setAttribute('data-taak-naam', fullNaam);
 
-        // Zoek de juiste tekst en pas hem aan
         let tekstSpan = Array.from(actieveEditTaak.children).find(child => child.tagName.toLowerCase() === 'span' && child.className === '');
         if (tekstSpan) {
-            if (isVast && nieuweOndertitel) {
+            if (nieuweOndertitel) {
                 tekstSpan.innerHTML = `<strong>${nieuweNaam}</strong><br><span style="font-size: 0.85em; opacity: 0.8;">${nieuweOndertitel}</span>`;
-            } else if (isVast) {
-                tekstSpan.innerHTML = `<strong>${nieuweNaam}</strong>`;
             } else {
-                tekstSpan.innerText = nieuweNaam;
+                if (isVast) {
+                    tekstSpan.innerHTML = `<strong>${nieuweNaam}</strong>`;
+                } else {
+                    tekstSpan.innerText = nieuweNaam;
+                }
             }
         }
 
@@ -789,7 +779,6 @@ if (opslaanEditKnop) {
 
         berekenVoortgang();
         
-        // Sla direct de wijziging veilig op in Google Sheets!
         if(handmatigOpslaanKnop) {
             handmatigOpslaanKnop.innerText = "⏳ Opslaan...";
             handmatigOpslaanKnop.style.opacity = "0.7";
@@ -806,7 +795,7 @@ if (opslaanEditKnop) {
 window.addEventListener('click', (e) => { 
     if (e.target === leerlingModal) leerlingModal.style.display = 'none'; 
     if (e.target === wachtwoordModal) wachtwoordModal.style.display = 'none'; 
-    if (e.target === editTaakModal) editTaakModal.style.display = 'none'; // Sluit ook als je buiten het witte vlak klikt
+    if (e.target === editTaakModal) editTaakModal.style.display = 'none'; 
 });
 if (sluitModalKnop) sluitModalKnop.addEventListener('click', () => { leerlingModal.style.display = 'none'; });
 if (sluitEditModal) sluitEditModal.addEventListener('click', () => { editTaakModal.style.display = 'none'; });
@@ -965,7 +954,6 @@ function koppelTaakEvents(taak) {
     taak.addEventListener('touchend', handleTouchEnd);
     taak.addEventListener('touchcancel', handleTouchEnd); 
 
-    // NIEUW: Potloodje bouwen als deze nog niet bestaat op een docenten taak
     if (!taak.querySelector('.docent-only-edit') && taak.getAttribute('data-maker') !== 'leerling') {
         const editBtn = document.createElement('div');
         editBtn.classList.add('docent-only-edit');
@@ -976,11 +964,10 @@ function koppelTaakEvents(taak) {
 
     const editBtn = taak.querySelector('.docent-only-edit');
     if (editBtn) {
-        // Om dubbele klik-events te voorkomen vervangen we de knop even onzichtbaar
         let newEditBtn = editBtn.cloneNode(true);
         editBtn.parentNode.replaceChild(newEditBtn, editBtn);
         newEditBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Voorkom dat de taak groen kleurt of sleept
+            e.stopPropagation(); 
             if (huidigeGebruiker !== 'Docent') return;
             openEditModal(taak);
         });
@@ -1027,16 +1014,18 @@ function koppelTaakEvents(taak) {
     }
 }
 
-function bouwTaakElement(taakNaam, leerlingNaam = 'Iedereen', isExtra = false, isDispenser = false, taakGroep = huidigeGroep, maker = 'docent') {
+function bouwTaakElement(taakNaam, subNaam = '', leerlingNaam = 'Iedereen', isExtra = false, isDispenser = false, taakGroep = huidigeGroep, maker = 'docent') {
     const taakElement = document.createElement('div');
     taakElement.classList.add('taak');
     taakElement.id = 'taak-' + globaleTaakId++; 
     if (isExtra) taakElement.classList.add('extra-taak');
     if (isDispenser) taakElement.classList.add('dispenser-taak'); 
     
+    let volledigeNaam = subNaam ? `${taakNaam} (${subNaam})` : taakNaam;
+
     taakElement.setAttribute('draggable', 'true'); 
     taakElement.setAttribute('data-leerling', leerlingNaam);
-    taakElement.setAttribute('data-taak-naam', taakNaam); 
+    taakElement.setAttribute('data-taak-naam', volledigeNaam); 
     taakElement.setAttribute('data-klaar-door', '');
     taakElement.setAttribute('data-groep', taakGroep); 
     taakElement.setAttribute('data-maker', maker);
@@ -1060,7 +1049,11 @@ function bouwTaakElement(taakNaam, leerlingNaam = 'Iedereen', isExtra = false, i
     }
     
     const tekst = document.createElement('span'); 
-    tekst.innerText = taakNaam; 
+    if (subNaam) {
+        tekst.innerHTML = `<strong>${taakNaam}</strong><br><span style="font-size: 0.85em; opacity: 0.8;">${subNaam}</span>`;
+    } else {
+        tekst.innerText = taakNaam; 
+    }
     taakElement.appendChild(tekst);
     
     koppelTaakEvents(taakElement);
@@ -1109,7 +1102,7 @@ function laadStandaardInhoud() {
 document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', () => {
     const invoerVeld = document.getElementById('eigen-klaarkaart');
     if(invoerVeld.value.trim() !== '') {
-        document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(invoerVeld.value.trim(), huidigeGebruiker, true, false, huidigeGroep, 'leerling'));
+        document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(invoerVeld.value.trim(), '', huidigeGebruiker, true, false, huidigeGroep, 'leerling'));
         invoerVeld.value = ''; 
     }
 });
@@ -1136,9 +1129,9 @@ function voegNieuweTaakToe() {
         gekozenLeerlingen.forEach(leerling => {
             let nieuweTaak;
             if (taakType === 'vast') { nieuweTaak = bouwVasteTaakElement(nieuweTaakTekst, ondertitelTekst, huidigeGroep, leerling); }
-            else if (taakType === 'dispenser') nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, true, huidigeGroep, 'docent');
-            else if (taakType === 'klaartaak') nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, true, false, huidigeGroep, 'docent');
-            else { nieuweTaak = bouwTaakElement(nieuweTaakTekst, leerling, false, false, huidigeGroep, 'docent'); }
+            else if (taakType === 'dispenser') nieuweTaak = bouwTaakElement(nieuweTaakTekst, ondertitelTekst, leerling, false, true, huidigeGroep, 'docent');
+            else if (taakType === 'klaartaak') nieuweTaak = bouwTaakElement(nieuweTaakTekst, ondertitelTekst, leerling, true, false, huidigeGroep, 'docent');
+            else { nieuweTaak = bouwTaakElement(nieuweTaakTekst, ondertitelTekst, leerling, false, false, huidigeGroep, 'docent'); }
             doelKolom.appendChild(nieuweTaak);
         });
 
@@ -1148,27 +1141,35 @@ function voegNieuweTaakToe() {
     }
 }
 
-// SLIM SCHOONMAKEN 
+// SLIM SCHOONMAKEN: Spaart nu alle taken die in "Te Doen 📚" staan!
 document.getElementById('wis-bord-knop').addEventListener('click', async () => {
-    if(confirm("Weet je zeker dat je alle flexibele taken wilt wissen? Ook de kluisjes en ingevulde reflecties van deze groep worden dan leeggemaakt!")) {
+    if(confirm("Weet je zeker dat je het bord wilt wissen voor de nieuwe week? Taken die in de 'Te Doen' kast staan blijven bewaard. Alle kluisjes en ingevulde reflecties worden wel leeggemaakt!")) {
         
         const wisKnop = document.getElementById('wis-bord-knop');
         wisKnop.innerText = "Bezig met wissen... Even geduld! ⏳";
         wisKnop.style.opacity = "0.7";
         wisKnop.style.pointerEvents = "none";
 
-        document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak)').forEach(t => { 
-            if (t.getAttribute('data-groep') === huidigeGroep) t.remove(); 
-        });
-        
         const wisKlaar = (taak) => {
             let klaarLijst = (taak.getAttribute('data-klaar-door') || '').split(',').filter(n => !actieveLeerlingenLijst.includes(n));
             taak.setAttribute('data-klaar-door', klaarLijst.join(','));
             if (klaarLijst.length === 0) taak.classList.remove('klaar'); 
         };
 
+        // Gooit alle flexibele taken weg, BEHALVE degene die veilig in de 'te-doen' kolom staan
+        document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak)').forEach(t => { 
+            if (t.getAttribute('data-groep') === huidigeGroep) {
+                if (t.parentElement && t.parentElement.id === 'te-doen') {
+                    wisKlaar(t); // Laat veilig staan in de kast, vinkjes wel weg
+                } else {
+                    t.remove(); // Wis flexibele taken die op dagen zijn ingepland
+                }
+            }
+        });
+
         document.querySelectorAll('.vaste-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) wisKlaar(t); });
         document.querySelectorAll('.extra-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('klaartaken-lijst').appendChild(t); }});
+        document.querySelectorAll('.dispenser-taak').forEach(t => { if (t.getAttribute('data-groep') === huidigeGroep) { wisKlaar(t); document.getElementById('te-doen').appendChild(t); }});
 
         for (let i = 0; i < actieveLeerlingenLijst.length; i++) {
             const leerling = actieveLeerlingenLijst[i];
@@ -1193,7 +1194,7 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
         wisKnop.style.opacity = "1";
         wisKnop.style.pointerEvents = "auto";
 
-        alert("Klaar voor de nieuwe week! Alles is netjes leeggemaakt.");
+        alert("Klaar voor de nieuwe week! Alle taken in 'Te Doen' staan veilig klaar voor de volgende ronde.");
     }
 });
 
