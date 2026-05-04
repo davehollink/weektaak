@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (TE DOEN & POTLOOD UPDATE!)
+// script.js - De motor van onze weektaak (TE DOEN, POTLOOD & LEERLINGEN UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -65,7 +65,7 @@ const scholenDatabase = {
     'Groep 5 roze': ['Fay Bakker', 'Quinn Beumer', 'Dani Damen', 'Julian van Eekeren', 'Mille Eelvelt', 'Tess van Geelen', 'Zoey Hogerhuis', 'Sam ten Holder', 'Mare Jurjus', 'Liz Knipping', 'Roxeanne Van den Brink', 'Elsa Petit', 'Jolie Rasing', 'Tim Steenstra', 'Milou Peters', 'Maud Peeters', 'Gwen Sluiter', 'Owen Wolters', 'Luuk van der Winkel'],
     'Groep 6 groen': ['Lot van Baaren', 'Filip Bachusz', 'Sef Bergsma', 'Vienne Dauphin', 'Max Gerver', 'Faya van den Hoff', 'James de Jong', 'Jill Laurentzen', 'Suus van der Mark', 'Jip Mulders', 'Mees Mulders', 'Liv Sikkes', 'Evan Sluiter', 'Levi Sprong', 'Noud Teering', 'Jesse Teunissen', 'Fenne van der Velde', 'Sjors Vollebregt', 'Lars van Vorselen', 'Scott Wolters'],
     'Groep 6 paars': ['Jop van den Berg', 'Daley ten Berge', 'Melle Bosma', 'Jelte ten Dam', 'Jordan Derksen', 'Jace op de Dijk', 'Morris van Gendt', 'Jara Haaring', 'Marrit Hensen', 'Noud Hoekstra', 'Job van Horssen', 'Hugo Hullekes', 'Bo Kudrya', 'Davin Le', 'Marijn Tak', 'Tess van der Teems', 'Liam Truong', 'Niels de Vries', 'Luciano Wang', 'Emily Zhou', 'Pleun Zweerink', 'Gijs Schriever'],
-    'Groep 7 blauw': ['Duuk van den Anker', 'Maelynn Berns', 'Noël Boers', 'Dex du Bois', 'Fayah Boxem', 'Sara ten Dam', 'Mick Derksen', 'Matz Drenth', 'Tara Engelen', 'Vuk Jankovic', 'Robin Janssen', 'Liv Kokke', 'Nova Lammerts van Bueren', 'Evi Lusing', 'Tijn van Mansom', 'Elin van Ooijen', 'Guusje Rikken', 'Jort Rikken', 'Lara Scheepers', 'Thom Smith', 'Kyliam Tsang'],
+    'Groep 7 blauw': ['Dex du Bois', 'Duuk van den Anker', 'Elin van Ooijen', 'Evi Lusing', 'Fayah Boxem', 'Guusje Rikken', 'Johnny Graave', 'Jort Rikken', 'Kyliam Tsang', 'Lara Scheepers', 'Liv Kokke', 'Maelynn Berns', 'Matz Drenth', 'Mick Derksen', 'Miklo Laijan', 'Nova Lammerts van Bueren', 'Noël Boers', 'Robin Janssen', 'Sara ten Dam', 'Tara Engelen', 'Thom Smith', 'Tijn van Mansom', 'Vuk Jankovic', 'Zoë Neijenhuis'],
     'Groep 7 paars': ['Mattia Agus', 'Mila Blaauw', 'Rens Eestermans', 'Seth de Feber', 'Jens Flohil', 'Sam Janssen', 'Sam Kuster', 'Stijn Meijer', 'Giulia Oostenrijk', 'James Spruitenburg', 'Leo Vastert', 'Dylan Willemsen', 'Benjamin Woeltjes', 'Cas Zeller', 'Jill Klaassen', 'Siem van Mullem', 'Nicole Tovar Velasquez', 'Pim van Reem', 'Thomas Engels', 'Lola Evers'],
     'Groep 7 turquoise': ['Liliya Aartse Tuijn', 'Evi Arends', 'Fay Bouwmeister', 'Joe Derksen', 'Niki van Dongen', 'Emma van Eekeren', 'Finn Eelvelt', 'Jada Goossens', 'Guusje Hageraats', 'Valerie Jolink', 'Maeson Menke', 'Isa Nijs', 'Denise Orelio', 'Lucas Peters', 'Stijn Postma', 'Tijn Stienissen', 'Tim Visser', 'Joris Vleeming', 'Jasmijn van Wachtendonk', 'Roan Zwart', 'Milan Zweers', 'Noah van den Hoff', 'Omar Titi'],
     'Groep 8 geel': ['Mayla Bakker', 'Finn van de Belt', 'Jolie Benders', 'Liz Beumer', 'Jaylee de Boer', 'Mirthe Creemers', 'Féline Degen', 'Jack Eskes', 'Fenne Lentjes', 'Miles Lina', 'Kyona Lindeman', 'Matvey Maranov', 'Lucas Orelio', 'Timon Schmitz', 'Yannick Jacobs', 'Noor van Wely', 'Pleun Gerver', 'Sarah Kersten', 'Juul Zweerink', 'Mirthe Gerritsen', 'Jayben Vahlkamp'],
@@ -294,6 +294,7 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
         wachtwoordModal.style.display = 'none';
     }
 });
+sluitWachtwoordModal.addEventListener('click', () => { wachtwoordModal.style.display = 'none'; });
 
 // --- Daadwerkelijke Inlog & BORD LADEN ---
 async function voerSuccesvolleLoginUit() {
@@ -318,9 +319,7 @@ async function voerSuccesvolleLoginUit() {
     opgeslagenBorden = {}; 
     cloudTaken.forEach(rij => {
         if (rij.groep && rij.bord_data) {
-            if (!opgeslagenBorden[rij.groep]) {
-                try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
-            }
+            try { opgeslagenBorden[rij.groep] = JSON.parse(rij.bord_data); } catch(e){}
         }
     });
 
@@ -1156,13 +1155,12 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
             if (klaarLijst.length === 0) taak.classList.remove('klaar'); 
         };
 
-        // Gooit alle flexibele taken weg, BEHALVE degene die veilig in de 'te-doen' kolom staan
         document.querySelectorAll('.taak:not(.vaste-taak):not(.extra-taak):not(.dispenser-taak)').forEach(t => { 
             if (t.getAttribute('data-groep') === huidigeGroep) {
                 if (t.parentElement && t.parentElement.id === 'te-doen') {
-                    wisKlaar(t); // Laat veilig staan in de kast, vinkjes wel weg
+                    wisKlaar(t); 
                 } else {
-                    t.remove(); // Wis flexibele taken die op dagen zijn ingepland
+                    t.remove(); 
                 }
             }
         });
