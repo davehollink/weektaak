@@ -112,13 +112,28 @@
             <div class="leerling-checkboxes" id="dynamische-checkboxes"></div>
         </div>
 
-        <div id="docent-acties" class="docent-acties" style="display: none;">
-            <div id="prullenbak" class="actie-blok prullenbak-blok">
-                🗑️ Sleep een flexibele taak hierheen om te wissen
+        <div id="docent-acties" class="docent-acties" style="display: none; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <div id="prullenbak" class="actie-blok prullenbak-blok" style="flex: 1;">
+                    🗑️ Sleep een taak hierheen om te wissen
+                </div>
+                <button id="wis-bord-knop" class="actie-blok wis-bord-knop" style="flex: 1;">
+                    Bord Leegmaken (Behoud 'Te Doen') 🧹
+                </button>
             </div>
-            <button id="wis-bord-knop" class="actie-blok wis-bord-knop">
-                Hele Bord Wissen 🧹
-            </button>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; width: 100%; background: #f4f7f4; padding: 10px; border-radius: 8px; border: 1px solid var(--lichtgroen); align-items: center; justify-content: space-between; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <strong style="color: var(--donkergroen);">Modus:</strong>
+                    <select id="bord-modus-select" class="login-selectie" style="margin: 0; padding: 8px; font-weight: bold;">
+                        <option value="huidig">👁️ Huidige week (Zichtbaar voor klas)</option>
+                        <option value="concept">📅 Volgende week (Onzichtbaar voorbereiden)</option>
+                    </select>
+                </div>
+                <button id="publiceer-concept-knop" class="knop" style="display: none; background-color: var(--oranje); border-color: #d16500; padding: 8px 15px; font-size: 1em;">
+                    🚀 Zet Volgende Week Live!
+                </button>
+            </div>
         </div>
         
         <div class="bord-container">
