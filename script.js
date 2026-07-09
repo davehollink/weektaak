@@ -1,4 +1,4 @@
-// script.js - De motor van onze weektaak (CONCEPT-MODUS & TE DOEN UPDATE!)
+// script.js - De motor van onze weektaak (NIEUWE GROEPEN 7 & 8 UPDATE!)
 
 // --- GOOGLE SHEETS INSTELLINGEN ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw36ZSn2dElXJDUrShUvVxiqGb1uJcULWsW29i68cRmXwhyg-7iH9-OmFpeiIcG2P4y/exec";
@@ -56,24 +56,46 @@ const editNaamInput = document.getElementById('edit-taak-naam-input');
 const editOndertitelInput = document.getElementById('edit-taak-ondertitel-input');
 let actieveEditTaak = null;
 
-// NIEUW: Concept Modus elementen
 const bordModusSelect = document.getElementById('bord-modus-select');
 const publiceerConceptKnop = document.getElementById('publiceer-concept-knop');
 let isConceptModus = false;
 
-// --- Database ---
+// --- Database (Correct gesorteerd op alfabetische volgorde van voornaam) ---
 const scholenDatabase = {
-    'Groep 5 donkerblauw': ['William Ameen', 'Quintin Besselink', 'Levi Beumkes', 'Olivier Everdij', 'Jae Boxem', 'Luuk de Bruin', 'Stan Engelen', 'Tim Herms', 'Kiyaan Jagmohan', 'Nathan Kant', 'Carice Kok', 'Loë Korstanje', 'Fenna Lammers', 'Yvan Lapré', 'Vik van Ooijen', 'Roos Zeller', 'Vajen Goossens', 'Amy Borgers', 'Julian van Wachtendonk', 'Genova Nolten'],
-    'Groep 5 lichtblauw': ['Tess Aagten', 'Yamour Bitar', 'Tim Bernink', 'Eslem Ekizkaya', 'Bram Flohil', 'Aimely Aimy Frenk', 'Job Gerver', 'Myla Jacobs', 'Duke Kudrya', 'Céline Harms', 'Lev van Lammerts Bueren', 'Lotte van Wezel', 'Stan Wijnveldt', 'Rheyven Tsang', 'Noah van den Toorn', 'Lucas Walvius', 'Sophie Rutgers', 'Sanne Zeller', 'Avin Yousef', 'Sev Hogenes'],
-    'Groep 5 roze': ['Fay Bakker', 'Quinn Beumer', 'Dani Damen', 'Julian van Eekeren', 'Mille Eelvelt', 'Tess van Geelen', 'Zoey Hogerhuis', 'Sam ten Holder', 'Mare Jurjus', 'Liz Knipping', 'Roxeanne Van den Brink', 'Elsa Petit', 'Jolie Rasing', 'Tim Steenstra', 'Milou Peters', 'Maud Peeters', 'Gwen Sluiter', 'Owen Wolters', 'Luuk van der Winkel'],
-    'Groep 6 groen': ['Lot van Baaren', 'Filip Bachusz', 'Sef Bergsma', 'Vienne Dauphin', 'Max Gerver', 'Faya van den Hoff', 'James de Jong', 'Jill Laurentzen', 'Suus van der Mark', 'Jip Mulders', 'Mees Mulders', 'Liv Sikkes', 'Evan Sluiter', 'Levi Sprong', 'Noud Teering', 'Jesse Teunissen', 'Fenne van der Velde', 'Sjors Vollebregt', 'Lars van Vorselen', 'Scott Wolters'],
-    'Groep 6 paars': ['Jop van den Berg', 'Daley ten Berge', 'Melle Bosma', 'Jelte ten Dam', 'Jordan Derksen', 'Jace op de Dijk', 'Morris van Gendt', 'Jara Haaring', 'Marrit Hensen', 'Noud Hoekstra', 'Job van Horssen', 'Hugo Hullekes', 'Bo Kudrya', 'Davin Le', 'Marijn Tak', 'Tess van der Teems', 'Liam Truong', 'Niels de Vries', 'Luciano Wang', 'Emily Zhou', 'Pleun Zweerink', 'Gijs Schriever'],
-    'Groep 7 blauw': ['Dex du Bois', 'Duuk van den Anker', 'Elin van Ooijen', 'Evi Lusing', 'Fayah Boxem', 'Guusje Rikken', 'Johnny Graave', 'Jort Rikken', 'Kyliam Tsang', 'Lara Scheepers', 'Liv Kokke', 'Maelynn Berns', 'Matz Drenth', 'Mick Derksen', 'Miklo Laijan', 'Nova Lammerts van Bueren', 'Noël Boers', 'Robin Janssen', 'Sara ten Dam', 'Tara Engelen', 'Thom Smith', 'Tijn van Mansom', 'Vuk Jankovic', 'Zoë Neijenhuis'],
-    'Groep 7 paars': ['Mattia Agus', 'Mila Blaauw', 'Rens Eestermans', 'Seth de Feber', 'Jens Flohil', 'Sam Janssen', 'Sam Kuster', 'Stijn Meijer', 'Giulia Oostenrijk', 'James Spruitenburg', 'Leo Vastert', 'Dylan Willemsen', 'Benjamin Woeltjes', 'Cas Zeller', 'Jill Klaassen', 'Siem van Mullem', 'Nicole Tovar Velasquez', 'Pim van Reem', 'Thomas Engels', 'Lola Evers'],
-    'Groep 7 turquoise': ['Liliya Aartse Tuijn', 'Evi Arends', 'Fay Bouwmeister', 'Joe Derksen', 'Niki van Dongen', 'Emma van Eekeren', 'Finn Eelvelt', 'Jada Goossens', 'Guusje Hageraats', 'Valerie Jolink', 'Maeson Menke', 'Isa Nijs', 'Denise Orelio', 'Lucas Peters', 'Stijn Postma', 'Tijn Stienissen', 'Tim Visser', 'Joris Vleeming', 'Jasmijn van Wachtendonk', 'Roan Zwart', 'Milan Zweers', 'Noah van den Hoff', 'Omar Titi'],
-    'Groep 8 geel': ['Mayla Bakker', 'Finn van de Belt', 'Jolie Benders', 'Liz Beumer', 'Jaylee de Boer', 'Mirthe Creemers', 'Féline Degen', 'Jack Eskes', 'Fenne Lentjes', 'Miles Lina', 'Kyona Lindeman', 'Matvey Maranov', 'Lucas Orelio', 'Timon Schmitz', 'Yannick Jacobs', 'Noor van Wely', 'Pleun Gerver', 'Sarah Kersten', 'Juul Zweerink', 'Mirthe Gerritsen', 'Jayben Vahlkamp'],
-    'Groep 8 oranje': ['Louise Bergen', 'Tibbe Broekhuis', 'Tess Delsink', 'Kai Everdij', 'Jula Evers', 'Anne van Elk', 'Jasmijn Kok', 'Thalesia Koenen', 'Elli Kroon', 'Siem Lentjes', 'Jayda Lindeman', 'Luuk Megens', 'Dante van Rossum', 'Jake Schuring', 'Sepp Struijker Boudier', 'Bram van Steenoven', 'Mert Pasaoglu', 'Teun Peeters', 'Dex Schuil', 'Marly Ramsoedh', 'Nikki Zwart', 'Jolie van der Kreeft', 'Cas Esmeijer', 'Ivy Le'],
-    'Groep 8 roze': ['Amber Beekman', 'Nine Benders', 'Ties van den Berg', 'Allison Mae Bosveld', 'Jaap Willem Hoogenhout', 'Jackie van den Oever', 'Maile Korstanje', 'Esmee van der Kreeft', 'Jasper Guijt', 'Summer Liu', 'Skyler Lucassen', 'Lola Mourelle Fernandez', 'Sophie Neijenhuis', 'Alissa Peelen', 'Rosa Walvius', 'Aiden Vaanholt', 'Senn van der Winkel', 'Vanity Hofs', 'Jelle Kersten', 'Bent Teunissen', 'Zonne Triemstra']
+    'Groep 7 geel': [
+        'Bo Kudrya', 'Daley ten Berge', 'Davin Le', 'Djustin van Capel', 'Emily Zhou', 
+        'Gijs Schriever', 'Hugo Hullekes', 'Jace op de Dijk', 'Jara Haaring', 'Jelte ten Dam', 
+        'Job van Horssen', 'Jop van den Berg', 'Jordan Derksen', 'Liam Truong', 'Luciano Wang', 
+        'Marijn Tak', 'Marrit Hensen', 'Melle Bosma', 'Morris van Gendt', 'Niels de Vries', 
+        'Nina Hendriks', 'Noud Hoekstra', 'Pleun Zweerink', 'Tess Sikkes', 'Tess van der Teems'
+    ],
+    'Groep 7 roze': [
+        'Evan Sluiter', 'Faya van den Hoff', 'Fenne van der Velde', 'Filip Bachusz', 'James de Jong', 
+        'Jesse Teunissen', 'Jill Laurentzen', 'Jip Mulders', 'Lars van Vorselen', 'Levi Sprong', 
+        'Liv Sikkes', 'Lot van Baaren', 'Max Gerver', 'Mees Mulders', 'Noud Teering', 
+        'Scott Wolters', 'Sef Bergsma', 'Sjors Vollebregt', 'Suus van der Mark', 'Tess Boonstra', 
+        'Vienne Dauphin', 'Vince Lusing', 'Zoë van den Heuvel'
+    ],
+    'Groep 8 blauw': [
+        'Dex du Bois', 'Duuk van den Anker', 'Elin van Ooijen', 'Evi Lusing', 'Fayah Boxem', 
+        'Guusje Rikken', 'Johnny Graave', 'Jort Rikken', 'Kyliam Tsang', 'Lara Scheepers', 
+        'Liv Kokke', 'Maelynn Berns', 'Matz Drenth', 'Mick Derksen', 'Miklo Laijan', 
+        'Nova Lammerts van Bueren', 'Noël Boers', 'Robin Janssen', 'Sara ten Dam', 'Tara Engelen', 
+        'Thom Smith', 'Tijn van Mansom', 'Vuk Jankovic', 'Zoë Neijenhuis'
+    ],
+    'Groep 8 paars': [
+        'Benjamin Woeltjes', 'Dylan Willemsen', 'Giulia Oostenrijk', 'James Spruitenburg', 'Jens Flohil', 
+        'Jill Klaassen', 'Kaylee Kroese', 'Leo Vastert', 'Lola Evers', 'Lotus Peters', 
+        'Mattia Agus', 'Mila Blaauw', 'Nicole Tovar Velasquez', 'Pim van Reem', 'Rens Eestermans', 
+        'Sam Janssen', 'Sam Kuster', 'Seth de Feber', 'Stijn Meijer', 'Thomas Engels'
+    ],
+    'Groep 8 turquoise': [
+        'Denise Orelio', 'Emma van Eekeren', 'Eva Giezen', 'Evi Arends', 'Fay Bouwmeister', 
+        'Finn Eelvelt', 'Guusje Hageraats', 'Isa Nijs', 'Isabeau Mossel', 'Jada Goossens', 
+        'Jasmijn van Wachtendonk', 'Joe Derksen', 'Joris Vleeming', 'Liliya Aartse Tuijn', 'Lucas Peters', 
+        'Maeson Menke', 'Milan Zweers', 'Niki van Dongen', 'Noah van den Hoff', 'Omar Titi', 
+        'Roan Zwart', 'Stijn Postma', 'Tijn Stienissen', 'Tim Visser', 'Valerie Jolink'
+    ]
 };
 
 let huidigeGroep = '';
@@ -113,7 +135,6 @@ async function stuurDataNaarGoogle(payload) {
     } catch (error) { console.error("Opslaan mislukt:", error); }
 }
 
-// BORD OPSLAAN (Nu met ondersteuning voor de Concept Modus!)
 async function stuurBordNaarGoogle(forceerDocentLive = false) {
     if (!huidigeGroep || !huidigeGebruiker) return;
     
@@ -126,7 +147,6 @@ async function stuurBordNaarGoogle(forceerDocentLive = false) {
             }
         });
         
-        // Zorg dat we geen groene vinkjes van onszelf opslaan in de blauwdruk als docent
         if (huidigeGebruiker === "Docent" && forceerDocentLive) {
             if(attrObj['class']) attrObj['class'] = attrObj['class'].replace('klaar', '').trim();
             attrObj['data-klaar-door'] = '';
@@ -146,8 +166,6 @@ async function stuurBordNaarGoogle(forceerDocentLive = false) {
     }
 
     await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: opslagSleutel, bord_data: JSON.stringify(takenData) } });
-    
-    // Houd het lokale geheugen up to date
     opgeslagenBorden[opslagSleutel] = takenData;
 }
 
@@ -265,25 +283,20 @@ opslaanWachtwoordKnop.addEventListener('click', () => {
 });
 sluitWachtwoordModal.addEventListener('click', () => { wachtwoordModal.style.display = 'none'; });
 
-
-// --- MODUS SCHAKELAAR LOGICA (Docent Only) ---
 if(bordModusSelect) {
     bordModusSelect.addEventListener('change', () => {
         isConceptModus = (bordModusSelect.value === 'concept');
         publiceerConceptKnop.style.display = isConceptModus ? 'block' : 'none';
         
-        // Bord visueel resetten
         document.querySelectorAll('.kolom').forEach(k => {
             const h3 = k.querySelector('h3');
             k.innerHTML = ''; k.appendChild(h3);
         });
         document.getElementById('klaartaken-lijst').innerHTML = '';
 
-        // Bepaal welke data we laden
         let laadSleutel = isConceptModus ? huidigeGroep + "_Docent_Concept" : huidigeGroep + "_Docent";
         let laadData = opgeslagenBorden[laadSleutel];
         
-        // Als het conceptbord nog hélemaal leeg is, kopiëren we de huidige weektaak als mooi startpunt
         if (isConceptModus && (!laadData || laadData.length === 0)) {
             laadData = opgeslagenBorden[huidigeGroep + "_Docent"];
         }
@@ -294,7 +307,6 @@ if(bordModusSelect) {
 
         updateTaakZichtbaarheid();
 
-        // Visuele hints zodat docent weet in welk bord ze werken
         if(isConceptModus) {
             document.body.style.borderTop = "8px solid var(--oranje)";
             ingelogdeGebruikerTekst.innerText = huidigeGebruiker + " (WERKT IN CONCEPT)";
@@ -305,7 +317,6 @@ if(bordModusSelect) {
     });
 }
 
-// --- Daadwerkelijke Inlog & BORD LADEN ---
 async function voerSuccesvolleLoginUit() {
     const isD = (huidigeGebruiker === "Docent");
     
@@ -467,7 +478,6 @@ function laadBordVanafData(takenData) {
     groepenGeinitialiseerd[huidigeGroep] = true;
 }
 
-// --- Wachtwoordenlijst Tonen ---
 bekijkWachtwoordenKnop.addEventListener('click', () => {
     let wachtwoordHtml = `<div class="wachtwoorden-lijst">`;
     actieveLeerlingenLijst.forEach(leerling => {
@@ -478,7 +488,6 @@ bekijkWachtwoordenKnop.addEventListener('click', () => {
     leerlingModal.style.display = 'flex';
 });
 
-// --- REFLECTIE BEHEREN ---
 function laadReflectieBord() {
     const reflectieGrid = document.getElementById('reflectie-dagen-grid');
     if (reflectieGrid.children.length > 0) return; 
@@ -797,7 +806,6 @@ window.addEventListener('click', (e) => {
 if (sluitModalKnop) sluitModalKnop.addEventListener('click', () => { leerlingModal.style.display = 'none'; });
 if (sluitEditModal) sluitEditModal.addEventListener('click', () => { editTaakModal.style.display = 'none'; });
 
-// === TOUCH EN DRAG LOGICA (CHROMBOOKS/IPADS) ===
 let activeTouchTaak = null;
 let touchKloon = null;
 
@@ -942,7 +950,6 @@ leerlingPrullenbak.addEventListener('drop', function() {
     verwerkLeerlingPrullenbakDrop();
 });
 
-// --- Taken Bouwen & Gebeurtenissen ---
 function koppelTaakEvents(taak) {
     maakTaakSleepbaar(taak); 
 
@@ -1181,10 +1188,8 @@ if(publiceerConceptKnop) {
             publiceerConceptKnop.innerText = "Bezig met live zetten... ⏳";
             publiceerConceptKnop.style.pointerEvents = "none";
 
-            // 1. Sla huidige conceptscherm op als HOOFD docentenbord
             await stuurBordNaarGoogle(true); 
 
-            // 2. Wis alle kind-kluisjes en reflecties definitief in de database
             for (let i = 0; i < actieveLeerlingenLijst.length; i++) {
                 const leerling = actieveLeerlingenLijst[i];
                 for (const dag of werkDagen) {
@@ -1199,7 +1204,6 @@ if(publiceerConceptKnop) {
 
             alert("✅ De nieuwe weektaak staat live! Alle oude leerlinggegevens zijn opgeruimd.");
             
-            // 3. Schakel netjes terug naar de Huidige Week weergave
             bordModusSelect.value = 'huidig';
             bordModusSelect.dispatchEvent(new Event('change'));
             
