@@ -18,6 +18,7 @@
             <p>Stap 1: Kies je groep en naam</p>
             <select id="kies-groep" class="login-selectie" style="margin-bottom: 25px;">
                 <option value="">-- Kies een groep --</option>
+                <option value="Groep 6 donkerblauw">Groep 6 donkerblauw</option>
                 <option value="Groep 7 geel">Groep 7 geel</option>
                 <option value="Groep 7 roze">Groep 7 roze</option>
                 <option value="Groep 8 blauw">Groep 8 blauw</option>
@@ -158,14 +159,30 @@
         </div>
 
         <div id="docent-overzicht" class="docent-overzicht" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--lichtgroen); padding-bottom: 8px; margin-bottom: 10px;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 2px solid var(--lichtgroen); padding-bottom: 8px; margin-bottom: 12px;">
                 <h3 style="margin: 0; border: none; color: var(--donkergroen);">📊 Voortgang van de klas</h3>
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <button id="archiveer-week-knop" style="background-color: var(--lichtbruin); font-size: 14px;">📸 Week Archiveren</button>
                     <button id="download-overzicht-knop" style="background-color: var(--donkergroen); font-size: 14px;">Overzicht Downloaden 📥</button>
                     <button id="bekijk-wachtwoorden-knop" style="background-color: var(--oranje); font-size: 14px;">Wachtwoorden Klas 👀</button>
                 </div>
             </div>
-            <p style="font-size: 14px; color: var(--lichtbruin); margin-top: 0; margin-bottom: 15px;">Klik op een leerling om de reflecties en afgeronde taken te bekijken.</p>
+            <div class="overzicht-toolbar">
+                <div class="overzicht-week-keuze">
+                    <label for="archief-week-select"><strong>Week:</strong></label>
+                    <select id="archief-week-select" class="login-selectie" style="margin: 0; padding: 6px 10px; font-size: 14px;">
+                        <option value="huidig">📅 Huidige week</option>
+                    </select>
+                </div>
+                <div class="overzicht-weergave-keuze">
+                    <button type="button" id="weergave-leerling-knop" class="weergave-tab actief">👥 Per leerling</button>
+                    <button type="button" id="weergave-taak-knop" class="weergave-tab">📌 Nog te maken per taak</button>
+                </div>
+                <label class="overzicht-filter-label" id="filter-openstaand-wrap">
+                    <input type="checkbox" id="filter-openstaand-check"> Alleen met openstaande taken
+                </label>
+            </div>
+            <p style="font-size: 14px; color: var(--lichtbruin); margin-top: 0; margin-bottom: 12px;">Klik op een naam voor reflecties en alle taken, of klap de openstaande taken uit.</p>
             <div id="overzicht-lijst" class="overzicht-lijst"></div>
         </div>
     </div>
@@ -196,9 +213,14 @@
             <h3 style="margin-top: 0; color: var(--donkergroen);">Taak aanpassen</h3>
             <p style="margin-bottom: 15px; font-size: 0.9em;">Pas hier de naam of les aan voor de nieuwe week.</p>
             
-            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
                 <input type="text" id="edit-taak-naam-input" class="login-selectie" style="width: 100%; box-sizing: border-box; margin: 0;" placeholder="Naam van de taak...">
                 <input type="text" id="edit-taak-ondertitel-input" class="login-selectie" style="width: 100%; box-sizing: border-box; margin: 0;" placeholder="Extra info (bijv. les 3)...">
+            </div>
+
+            <div id="edit-uitsluiten-sectie" style="display: none; text-align: left; margin-bottom: 20px;">
+                <p id="edit-uitsluiten-titel" style="margin: 0 0 8px 0; font-weight: bold; font-size: 0.9em; color: var(--donkergroen);">Leerlingen uitsluiten van deze taak:</p>
+                <div id="edit-uitsluiten-lijst" class="edit-uitsluiten-lijst"></div>
             </div>
             
             <button id="opslaan-edit-knop" style="width: 100%; background-color: var(--donkergroen); color: white; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; border: none;">Wijzigingen Opslaan</button>

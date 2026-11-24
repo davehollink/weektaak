@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Gebruikershandleiding Weektaak</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Ubuntu', sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+            background-color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: #0a6939; /* Donkergroen */
+            border-bottom: 3px solid #8cc63f; /* Lichtgroen */
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+        }
+        .ondertitel {
+            font-size: 1.2em;
+            color: #765742; /* Bruin */
+            margin-top: 0;
+        }
+        h2 {
+            color: #f17400; /* Oranje */
+            margin-top: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #0a6939;
+            margin-bottom: 5px;
+        }
+        ul, ol {
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .highlight {
+            background-color: #f4f7f4;
+            padding: 15px;
+            border-left: 4px solid #8cc63f;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .waarschuwing {
+            background-color: #fff3e0;
+            padding: 15px;
+            border-left: 4px solid #f17400;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .knop {
+            background-color: #8cc63f;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+            border: 1px solid #0a6939;
+        }
+        .knop-rood {
+            background-color: darkred;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        /* Instellingen voor perfect printen op A4 */
+        @media print {
+            body { padding: 0; font-size: 11pt; }
+            h2 { page-break-after: avoid; }
+            p, ul, ol, .highlight, .waarschuwing { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Complete Handleiding: Digitale Weektaak</h1>
+            <p class="ondertitel">IKC Binnenstebuiten</p>
+        </div>
+
+        <p>Welkom bij de digitale weektaak! Dit platform is ontworpen om leerlingen meer regie te geven over hun eigen planning en om jou als leerkracht direct inzicht te geven in hun voortgang en welzijn. In deze handleiding leggen we stap voor stap uit hoe je het systeem optimaal gebruikt.</p>
+
+        <h2>1. Inloggen & Wachtwoorden</h2>
+        <p>Ga in je internetbrowser naar de link van de weektaak. Inloggen gaat heel eenvoudig: selecteer je klas en naam, typ je wachtwoord in en druk op <strong>Enter</strong>.</p>
+        
+        <ul>
+            <li><strong>Leerkrachten:</strong> Kies jouw groep, selecteer de naam <em>Leerkracht (Beheerder)</em> en vul het docentenwachtwoord in: <strong>Binnenstebuiten!</strong></li>
+            <li><strong>Leerlingen:</strong> Kiezen hun eigen groep en naam. Het standaard wachtwoord is de <em>kleur van de groep</em> vastgeplakt aan het <em>groepsnummer</em> (bijv. <code>oranje8</code> of <code>blauw7</code>). Nadat ze zijn ingelogd, kunnen leerlingen via de oranje knop 'Wachtwoord Wijzigen' zelf een nieuw, geheim wachtwoord instellen.</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>💡 Tip: Slimme Snelkoppelingen (Bladwijzers) voor Leerlingen</strong><br>
+            Zodra een leerling is ingelogd, past de adresbalk (URL) bovenin het scherm zich aan naar hun profiel. Laat de leerling déze specifieke pagina opslaan als favoriet/bladwijzer op hun Chromebook (het sterretje aanklikken). Bij de volgende keer inloggen staat hun klas en naam dan direct al ingevuld!
+        </div>
+
+        <h2>2. Het Docentendashboard (Jouw Beheerpaneel)</h2>
+        <p>Wanneer je als leerkracht inlogt, zie je een speciaal beheerpaneel. Hiermee zet je de weektaak klaar en bewaak je het overzicht.</p>
+
+        <div class="waarschuwing">
+            <strong>⚠️ De Gouden Regel: Opslaan!</strong><br>
+            Het bord slaat <strong>nooit</strong> vanzelf op. Dit doen we bewust, zodat foutjes of stotterend internet het bord niet per ongeluk wissen. Klik na <em>elke</em> actie (taak toevoegen, taak wissen of tekst wijzigen) áltijd rechtsboven op de groene knop <span class="knop">💾 Opslaan</span>. Pas als je de melding "✅ Opgeslagen!" ziet, staat het veilig in de database.
+        </div>
+
+        <h3>A. Taken Toevoegen</h3>
+        <p>Onder het kopje <strong>Takenbeheer</strong> maak je nieuwe blokjes aan:</p>
+        <ol>
+            <li>Typ de naam van de taak in het bovenste tekstvak (bijv. "Rekenen").</li>
+            <li>Gebruik het tweede tekstvak voor extra informatie of een ondertitel (bijv. "basistaak" of "les 4"). Dit is optioneel.</li>
+            <li>Kies het <strong>soort taak</strong>:
+                <ul>
+                    <li><strong>Normale taak (flexibel):</strong> Leerlingen kunnen dit blokje zelf inplannen op een dag.</li>
+                    <li><strong>Vaste taak:</strong> Bijv. gym of een verplichte les. Leerlingen kunnen deze niet verslepen of verwijderen.</li>
+                    <li><strong>Dispenser:</strong> Voor oefensoftware. Leerlingen slepen een kopie naar hun bord en vinken met een + en - aan hoe vaak ze het hebben gedaan.</li>
+                    <li><strong>Klaartaak 🌟:</strong> Extra of verdiepende taken. Deze worden pas zichtbaar voor de leerling als ze álle flexibele taken voor die week hebben afgevinkt.</li>
+                </ul>
+            </li>
+            <li>Kies de locatie: Waar wil je het blokje neerzetten? Meestal kies je voor de <code>Te Doen 📚</code> kolom (de "digitale kast" waar leerlingen uit kiezen).</li>
+            <li>Voor wie is de taak? Vink aan of de taak voor de hele groep is, of speciaal voor bepaalde leerlingen. Klik daarna op <strong>Taak Toevoegen</strong>.</li>
+        </ol>
+
+        <p><em>Zit een taak specifiek aan één leerling gekoppeld? Dan zie je dit in jouw overzicht als een handig oranje naamlabeltje op het blokje staan.</em></p>
+
+        <h3>B. Taken Bewerken en Wissen</h3>
+        <ul>
+            <li><strong>Bewerken ✏️:</strong> Wil je een typfout herstellen, of voor een nieuwe week "les 2" veranderen in "les 3"? Klik simpelweg op het kleine potloodje rechtsonder in een taakblokje. Vul de nieuwe tekst in en druk op opslaan. Je hoeft taken dus niet wekelijks opnieuw aan te maken!</li>
+            <li><strong>Wissen:</strong> Wil je een taakblokje helemaal weghalen? Sleep het blokje dan naar de rode prullenbak aan de rechterkant van je scherm. <em>Vergeet daarna niet op de groene Opslaan knop in je menubalk te klikken!</em></li>
+        </ul>
+
+        <h2>3. Voortgang en Reflecties Bekijken</h2>
+        <p>Scrol je op het docentendashboard naar beneden, dan zie je het onderdeel <strong>📊 Voortgang van de klas</strong>.</p>
+        <ul>
+            <li>Je ziet hier een lijst met alle leerlingen en hun afgeronde percentage (bijv. 8 van de 14 taken af).</li>
+            <li><strong>Details bekijken (🔍):</strong> Klik op de naam van een leerling. Er opent een pop-up. Hierin zie je precies wélke taken ze hebben afgevinkt. Ook zie je hier hun ingevulde <strong>Reflecties</strong> per dag (hoe voelden ze zich, wat was lastig, waar zijn ze trots op, en is er nog een hulpvraag?).</li>
+            <li><strong>Exporteren:</strong> Met de donkergroene knop 'Overzicht Downloaden' haal je direct een Excel-bestand binnen met al deze data. Perfect voor je administratie of voor rapportgesprekken!</li>
+        </ul>
+
+        <h2>4. Hoe werkt het voor de leerling?</h2>
+        <p>Leerlingen zien een rustiger planbord. Zo werkt het voor hen:</p>
+        <ol>
+            <li><strong>Inplannen:</strong> Ze pakken (met muis of vingers) de taken uit <code>Te Doen 📚</code> en slepen ze naar de gewenste dag.</li>
+            <li><strong>Afvinken:</strong> Is een taak af? Eén keer klikken of tikken op het blokje maakt de taak groen (klaar).</li>
+            <li><strong>Foutje gemaakt?:</strong> Als ze per ongeluk een klaartaak of kloon-taak hebben gemaakt, kunnen ze deze weggooien in hun eigen kleine prullenbakje.</li>
+            <li><strong>Reflecteren:</strong> Aan het einde van de dag vullen ze onderin het scherm hun reflectie in. Ze kiezen een smiley en beantwoorden drie korte vragen (Lastig, Trots op, Hulpvraag).</li>
+            <li><strong>Opslaan:</strong> Leerlingen moeten áltijd op <span class="knop">💾 Opslaan</span> drukken voordat ze de Chromebook dichtklappen!</li>
+        </ol>
+
+        <h2>5. De Nieuwe Week Starten</h2>
+        <p>Is de vrijdag voorbij? Dan maak je in één klik het bord weer schoon voor maandag:</p>
+        <ol>
+            <li>Klik in je docentenpaneel op de rode knop <span class="knop-rood">Hele Bord Wissen 🧹</span>.</li>
+            <li>Bevestig de melding. Alle reflecties van leerlingen worden gewist, de afgeronde vinkjes (groene kleur) verdwijnen en alle ingeplande taken op de dagen worden weggehaald.</li>
+            <li><strong>Je basis blijft staan:</strong> Alles wat nog in je <code>Te Doen 📚</code> kast stond, blijft veilig bewaard! Deze hoef je dus niet opnieuw te maken.</li>
+            <li>Klik als laatste stap altijd weer even op <span class="knop">💾 Opslaan</span> in je menubalk.</li>
+        </ol>
+        <p><em>Let op: Wil je de data van de afgelopen week bewaren? Druk dan éérst op 'Overzicht Downloaden' voordat je het bord wist.</em></p>
+
+    </div>
+</body>
+</html>

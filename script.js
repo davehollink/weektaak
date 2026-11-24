@@ -55,13 +55,174 @@ const opslaanEditKnop = document.getElementById('opslaan-edit-knop');
 const editNaamInput = document.getElementById('edit-taak-naam-input');
 const editOndertitelInput = document.getElementById('edit-taak-ondertitel-input');
 let actieveEditTaak = null;
+let gesleepteTaak = null;
 
 const bordModusSelect = document.getElementById('bord-modus-select');
 const publiceerConceptKnop = document.getElementById('publiceer-concept-knop');
 let isConceptModus = false;
 
+const archiefWeekSelect = document.getElementById('archief-week-select');
+const archiveerWeekKnop = document.getElementById('archiveer-week-knop');
+const filterOpenstaandCheck = document.getElementById('filter-openstaand-check');
+const weergaveLeerlingKnop = document.getElementById('weergave-leerling-knop');
+const weergaveTaakKnop = document.getElementById('weergave-taak-knop');
+let overzichtWeergaveModus = 'leerling';
+
+function getUitgeslotenLijst(bron) {
+    const raw = (bron && typeof bron.getAttribute === 'function')
+        ? (bron.getAttribute('data-uitgesloten') || '')
+        : (bron && bron['data-uitgesloten'] ? bron['data-uitgesloten'] : '');
+    return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function getDoelgroepLijst(bron) {
+    const raw = (bron && typeof bron.getAttribute === 'function')
+        ? (bron.getAttribute('data-leerling') || '')
+        : (bron && bron['data-leerling'] ? bron['data-leerling'] : '');
+    return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function isTaakVoorLeerling(origineel, leerling) {
+    const doelgroep = origineel.getAttribute('data-leerling') || '';
+    if (doelgroep === 'Iedereen') {
+        return !getUitgeslotenLijst(origineel).includes(leerling);
+    }
+    return getDoelgroepLijst(origineel).includes(leerling);
+}
+
+function updateUitgeslotenLabel(taak) {
+    if (!taak) return;
+    let bestaande = taak.querySelector('.taak-uitgesloten-label');
+    const uitgesloten = getUitgeslotenLijst(taak);
+    if (taak.getAttribute('data-leerling') === 'Iedereen' && uitgesloten.length > 0) {
+        if (!bestaande) {
+            bestaande = document.createElement('div');
+            bestaande.classList.add('taak-uitgesloten-label');
+            taak.appendChild(bestaande);
+        }
+        bestaande.innerText = `Behalve: ${uitgesloten.join(', ')}`;
+        bestaande.style.display = (huidigeGebruiker === 'Docent') ? 'block' : 'none';
+    } else if (bestaande) {
+        bestaande.remove();
+    }
+}
+
+function updateLeerlingDoelgroepWeergave(taak) {
+    if (!taak || taak.classList.contains('kloon-taak')) return;
+    const doelgroep = taak.getAttribute('data-leerling') || '';
+    const isVast = taak.classList.contains('vaste-taak');
+    const isExtra = taak.classList.contains('extra-taak');
+
+    let dropdown = taak.querySelector('.leerling-dropdown-container');
+    let enkelLabel = Array.from(taak.children).find(el =>
+        el.tagName.toLowerCase() === 'div' &&
+        !el.classList.contains('docent-only-edit') &&
+        !el.classList.contains('taak-uitgesloten-label') &&
+        !el.classList.contains('leerling-dropdown-container') &&
+        !el.classList.contains('taak-teller') &&
+        el.innerText !== 'Vaste Taak' &&
+        el.innerText !== 'Klaartaak 🎮'
+    );
+
+    if (doelgroep === 'Iedereen') {
+        if (dropdown) dropdown.remove();
+        if (enkelLabel) enkelLabel.remove();
+        updateUitgeslotenLabel(taak);
+        return;
+    }
+
+    const lijst = getDoelgroepLijst(taak);
+    if (lijst.length <= 1) {
+        if (dropdown) dropdown.remove();
+        const naam = lijst[0] || doelgroep;
+        if (!enkelLabel) {
+            enkelLabel = document.createElement('div');
+            if (!isVast) enkelLabel.classList.add('taak-leerling-label');
+            const rightPos = isVast ? '55px' : (isExtra ? '75px' : '-10px');
+            enkelLabel.style.cssText = `background-color: var(--oranje); color: white; font-size: 10px; padding: 2px 5px; border-radius: 3px; position: absolute; top: -10px; right: ${rightPos}; z-index: 10;`;
+            taak.insertBefore(enkelLabel, taak.firstChild);
+        }
+        enkelLabel.innerText = naam;
+    } else {
+        if (enkelLabel) enkelLabel.remove();
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.classList.add('leerling-dropdown-container');
+            taak.appendChild(dropdown);
+        }
+        dropdown.innerHTML = `
+            <button type="button" class="leerling-dropdown-knop">👥 ${lijst.length} leerlingen ▾</button>
+            <div class="leerling-dropdown-lijst">
+                ${lijst.map(n => `<span class="leerling-dropdown-item">${n}</span>`).join('')}
+            </div>
+        `;
+        dropdown.style.display = (huidigeGebruiker === 'Docent') ? 'block' : 'none';
+        const knop = dropdown.querySelector('.leerling-dropdown-knop');
+        const lijstEl = dropdown.querySelector('.leerling-dropdown-lijst');
+        if (knop && lijstEl) {
+            knop.onclick = (e) => {
+                e.stopPropagation();
+                lijstEl.classList.toggle('open');
+            };
+        }
+    }
+}
+
+function groepeerBestaandeLeerlingTaken() {
+    if (huidigeGebruiker !== 'Docent') return;
+
+    const containers = [...document.querySelectorAll('.kolom'), document.getElementById('klaartaken-lijst')].filter(Boolean);
+    containers.forEach(container => {
+        const groepen = new Map();
+        const taken = Array.from(container.querySelectorAll(':scope > .taak:not(.kloon-taak)')).filter(t => {
+            const doelgroep = t.getAttribute('data-leerling') || '';
+            return t.getAttribute('data-groep') === huidigeGroep &&
+                doelgroep !== 'Iedereen' &&
+                t.getAttribute('data-maker') !== 'leerling';
+        });
+
+        taken.forEach(taak => {
+            const naam = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
+            if (!naam) return;
+            const type = taak.classList.contains('vaste-taak') ? 'vast'
+                : taak.classList.contains('extra-taak') ? 'extra'
+                : taak.classList.contains('dispenser-taak') ? 'dispenser' : 'flex';
+            const sleutel = `${naam}||${type}`;
+            if (!groepen.has(sleutel)) groepen.set(sleutel, []);
+            groepen.get(sleutel).push(taak);
+        });
+
+        groepen.forEach(lijst => {
+            if (lijst.length <= 1) return;
+            const hoofdTaak = lijst[0];
+            const alleLeerlingen = [];
+            const alleKlaarDoor = new Set((hoofdTaak.getAttribute('data-klaar-door') || '').split(',').filter(Boolean));
+
+            lijst.forEach((t, idx) => {
+                getDoelgroepLijst(t).forEach(n => {
+                    if (!alleLeerlingen.includes(n)) alleLeerlingen.push(n);
+                });
+                (t.getAttribute('data-klaar-door') || '').split(',').filter(Boolean).forEach(n => alleKlaarDoor.add(n));
+                if (idx > 0) t.remove();
+            });
+
+            hoofdTaak.setAttribute('data-leerling', alleLeerlingen.join(','));
+            if (alleKlaarDoor.size > 0) {
+                hoofdTaak.setAttribute('data-klaar-door', Array.from(alleKlaarDoor).join(','));
+            }
+            updateLeerlingDoelgroepWeergave(hoofdTaak);
+        });
+    });
+}
+
 // --- Database (Correct gesorteerd op alfabetische volgorde van voornaam) ---
 const scholenDatabase = {
+    'Groep 6 donkerblauw': [
+        'Amy Borgers', 'Carice Kok', 'Fenna Lammers', 'Floor Peelen', 'Genova Nolten',
+        'Jae Boxem', 'Julian van Wachtendonk', 'Levi Beumkes', 'Loë Korstanje', 'Nathan Kant',
+        'Olivier Everdij', 'Pem van Alst', 'Quintin Besselink', 'Roos Zeller', 'Stan Engelen',
+        'Tim Herms', 'Vajen Goossens', 'Vik van Ooijen', 'William Ameen', 'Yvan Lapré'
+    ],
     'Groep 7 geel': [
         'Bo Kudrya', 'Daley ten Berge', 'Davin Le', 'Djustin van Capel', 'Emily Zhou', 
         'Gijs Schriever', 'Hugo Hullekes', 'Jace op de Dijk', 'Jara Haaring', 'Jelte ten Dam', 
@@ -226,16 +387,50 @@ kiesGroepSelect.addEventListener('change', () => {
 
 function vulDynamischeCheckboxes() {
     const checkboxContainer = document.getElementById('dynamische-checkboxes');
-    checkboxContainer.innerHTML = `<span class="checkbox-titel">Voor wie?</span><label><input type="checkbox" id="check-iedereen" value="Iedereen" checked> Hele groep</label>`;
+    let html = `
+        <div class="checkbox-header">
+            <span class="checkbox-titel">Voor wie?</span>
+            <label><input type="radio" name="doelgroep-modus" id="modus-iedereen" value="iedereen" checked> Hele groep</label>
+            <label><input type="radio" name="doelgroep-modus" id="modus-specifiek" value="specifiek"> Alleen gekozen leerlingen</label>
+            <span id="uitsluiten-hint" class="uitsluiten-hint">(Vink aan wie je wilt uitsluiten)</span>
+        </div>
+        <div class="leerling-checkbox-lijst">
+    `;
     actieveLeerlingenLijst.forEach(leerling => {
-        checkboxContainer.innerHTML += `<label><input type="checkbox" class="leerling-check" value="${leerling}"> ${leerling}</label>`;
+        html += `<label class="leerling-check-label"><input type="checkbox" class="leerling-check" value="${leerling}"> ${leerling}</label>`;
     });
+    html += `</div>`;
+    checkboxContainer.innerHTML = html;
 
-    const checkIedereen = document.getElementById('check-iedereen');
+    const modusIedereen = document.getElementById('modus-iedereen');
+    const modusSpecifiek = document.getElementById('modus-specifiek');
+    const hint = document.getElementById('uitsluiten-hint');
     const leerlingChecks = document.querySelectorAll('.leerling-check');
 
-    checkIedereen.addEventListener('change', () => { if (checkIedereen.checked) leerlingChecks.forEach(box => box.checked = false); });
-    leerlingChecks.forEach(box => { box.addEventListener('change', () => { if (box.checked) checkIedereen.checked = false; }); });
+    function updateCheckboxStyling() {
+        const isIedereenModus = modusIedereen.checked;
+        hint.innerText = isIedereenModus
+            ? '(Vink aan wie je wilt uitsluiten)'
+            : '(Vink aan voor wie de taak is)';
+        leerlingChecks.forEach(box => {
+            const label = box.closest('.leerling-check-label');
+            if (isIedereenModus && box.checked) label.classList.add('uitgesloten');
+            else label.classList.remove('uitgesloten');
+        });
+    }
+
+    function resetChecksOnModusChange() {
+        leerlingChecks.forEach(box => {
+            box.checked = false;
+        });
+        updateCheckboxStyling();
+    }
+
+    modusIedereen.addEventListener('change', resetChecksOnModusChange);
+    modusSpecifiek.addEventListener('change', resetChecksOnModusChange);
+    leerlingChecks.forEach(box => {
+        box.addEventListener('change', updateCheckboxStyling);
+    });
 }
 
 naarWachtwoordKnop.addEventListener('click', () => {
@@ -305,7 +500,10 @@ if(bordModusSelect) {
             laadBordVanafData(laadData);
         }
 
+        groepeerBestaandeLeerlingTaken();
         updateTaakZichtbaarheid();
+        updateKlaarWeergave();
+        berekenVoortgang();
 
         if(isConceptModus) {
             document.body.style.borderTop = "8px solid var(--oranje)";
@@ -372,6 +570,8 @@ async function voerSuccesvolleLoginUit() {
         let docentData = opgeslagenBorden[huidigeGroep + "_Docent"] || [];
         if (docentData.length > 0) laadBordVanafData(docentData);
         else laadStandaardInhoud();
+        groepeerBestaandeLeerlingTaken();
+        vulArchiefWeekSelect();
 
     } else {
         veranderWachtwoordKnop.style.display = 'inline-block'; 
@@ -396,6 +596,7 @@ async function voerSuccesvolleLoginUit() {
                 let dNaamAttr = dTaak.attrs['data-taak-naam'];
                 let tempDiv = document.createElement('div');
                 tempDiv.innerHTML = dTaak.html;
+                tempDiv.querySelectorAll('.taak-uitgesloten-label, .docent-only-edit, .leerling-dropdown-container').forEach(el => el.remove());
                 let dTxt = tempDiv.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
                 
                 let finalNaam = (dNaamAttr ? dNaamAttr.trim().toLowerCase() : dTxt);
@@ -406,7 +607,9 @@ async function voerSuccesvolleLoginUit() {
                     let alleTaken = document.querySelectorAll('.taak:not(.kloon-taak)');
                     taakBestaat = Array.from(alleTaken).find(t => {
                         let tAttr = (t.getAttribute('data-taak-naam') || '').trim().toLowerCase();
-                        let tTxt = t.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                        let tClone = t.cloneNode(true);
+                        tClone.querySelectorAll('.taak-uitgesloten-label, .docent-only-edit, .leerling-dropdown-container').forEach(el => el.remove());
+                        let tTxt = tClone.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
                         return (tAttr === finalNaam) || (tTxt === finalNaam);
                     });
                 }
@@ -416,10 +619,36 @@ async function voerSuccesvolleLoginUit() {
                     for (let key in dTaak.attrs) { nieuweTaak.setAttribute(key, dTaak.attrs[key]); }
                     if(dTaak.attrs['class']) nieuweTaak.className = dTaak.attrs['class'];
                     nieuweTaak.innerHTML = dTaak.html;
-                    nieuweTaak.id = 'taak-' + globaleTaakId++; 
+                    if (!dTaak.attrs.id || document.getElementById(dTaak.attrs.id)) {
+                        nieuweTaak.id = 'taak-' + globaleTaakId++;
+                    } else {
+                        let num = parseInt(dTaak.attrs.id.split('-')[1]);
+                        if (!isNaN(num) && num >= globaleTaakId) globaleTaakId = num + 1;
+                    }
                     const doelKolom = document.getElementById(dTaak.kolom);
                     if (doelKolom) { doelKolom.appendChild(nieuweTaak); koppelTaakEvents(nieuweTaak); }
                     bordAangepast = true;
+                } else {
+                    const nieuweDoelgroep = dTaak.attrs['data-leerling'] || '';
+                    if ((taakBestaat.getAttribute('data-leerling') || '') !== nieuweDoelgroep) {
+                        taakBestaat.setAttribute('data-leerling', nieuweDoelgroep);
+                        updateLeerlingDoelgroepWeergave(taakBestaat);
+                        bordAangepast = true;
+                    }
+                    const nieuweUitgesloten = dTaak.attrs['data-uitgesloten'] || '';
+                    if ((taakBestaat.getAttribute('data-uitgesloten') || '') !== nieuweUitgesloten) {
+                        if (nieuweUitgesloten) taakBestaat.setAttribute('data-uitgesloten', nieuweUitgesloten);
+                        else taakBestaat.removeAttribute('data-uitgesloten');
+                        updateUitgeslotenLabel(taakBestaat);
+                        bordAangepast = true;
+                    }
+                    if (taakBestaat.classList.contains('vaste-taak') && dTaak.kolom && taakBestaat.parentElement && taakBestaat.parentElement.id !== dTaak.kolom) {
+                        const doelKolom = document.getElementById(dTaak.kolom);
+                        if (doelKolom) {
+                            doelKolom.appendChild(taakBestaat);
+                            bordAangepast = true;
+                        }
+                    }
                 }
             });
 
@@ -428,13 +657,24 @@ async function voerSuccesvolleLoginUit() {
                 if (maker === 'leerling') return; 
 
                 let naamAttr = (taak.getAttribute('data-taak-naam') || '').trim().toLowerCase();
-                let txtNaam = taak.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
+                let tClone = taak.cloneNode(true);
+                tClone.querySelectorAll('.taak-uitgesloten-label, .docent-only-edit').forEach(el => el.remove());
+                let txtNaam = tClone.textContent.replace('Vaste Taak', '').replace('Klaartaak 🎮', '').replace(/✏️/g, '').replace(/[\n\r]+|[\s]{2,}/g, ' ').trim().toLowerCase();
 
                 if (naamAttr && !actueleDocentNamen.includes(naamAttr) && !actueleDocentNamen.includes(txtNaam)) {
                     taak.remove(); 
                     bordAangepast = true;
                 } else if (!naamAttr && !actueleDocentNamen.includes(txtNaam)) {
                     taak.remove(); 
+                    bordAangepast = true;
+                }
+            });
+
+            document.querySelectorAll('.kloon-taak[data-kloon-van]').forEach(kloon => {
+                const bronId = kloon.getAttribute('data-kloon-van');
+                const bronTaak = bronId ? document.getElementById(bronId) : null;
+                if (!bronTaak || !isTaakVoorLeerling(bronTaak, huidigeGebruiker)) {
+                    kloon.remove();
                     bordAangepast = true;
                 }
             });
@@ -594,22 +834,80 @@ function updateTaakZichtbaarheid() {
     }
 
     document.querySelectorAll('.taak').forEach(taak => {
-        const doelgroep = taak.getAttribute('data-leerling');
-        let hoortBijActieveGroep = (taak.getAttribute('data-groep') === huidigeGroep) && (doelgroep === 'Iedereen' || actieveLeerlingenLijst.includes(doelgroep));
+        const doelgroep = taak.getAttribute('data-leerling') || '';
+        const doelgroepLijst = getDoelgroepLijst(taak);
+        let hoortBijActieveGroep = (taak.getAttribute('data-groep') === huidigeGroep) &&
+            (doelgroep === 'Iedereen' || doelgroepLijst.some(n => actieveLeerlingenLijst.includes(n)));
         if (!hoortBijActieveGroep) { taak.style.display = 'none'; return; }
 
         if (huidigeGebruiker === 'Docent') {
+            if (taak.classList.contains('vaste-taak')) taak.setAttribute('draggable', 'true');
             taak.style.display = (taak.classList.contains('kloon-taak') || (taak.classList.contains('extra-taak') && taak.getAttribute('data-maker') === 'leerling')) ? 'none' : 'flex'; 
         } else {
+            if (taak.classList.contains('vaste-taak')) taak.setAttribute('draggable', 'false');
+
+            if (taak.classList.contains('kloon-taak') && taak.getAttribute('data-kloon-van')) {
+                const bron = document.getElementById(taak.getAttribute('data-kloon-van'));
+                if (!bron || !isTaakVoorLeerling(bron, huidigeGebruiker)) {
+                    taak.style.display = 'none';
+                    return;
+                }
+            }
+
             if (taak.id && verborgenOriginelen.includes(taak.id)) taak.style.display = 'none';
-            else if (doelgroep === 'Iedereen' || doelgroep === huidigeGebruiker) taak.style.display = 'flex'; 
+            else if (isTaakVoorLeerling(taak, huidigeGebruiker)) taak.style.display = 'flex'; 
             else taak.style.display = 'none'; 
         }
     });
     
-    document.querySelectorAll('.docent-only-edit').forEach(btn => {
-        btn.style.display = (huidigeGebruiker === 'Docent') ? 'block' : 'none';
+    document.querySelectorAll('.docent-only-edit, .taak-uitgesloten-label, .leerling-dropdown-container').forEach(el => {
+        el.style.display = (huidigeGebruiker === 'Docent') ? 'block' : 'none';
     });
+}
+
+function berekenHuidigeLeerlingStatus(alleOriginelen, leerling) {
+    let totaal = 0;
+    let klaar = 0;
+    let afgerondeNamenLijst = [];
+    let nogTeMakenLijst = [];
+    let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
+
+    alleOriginelen.forEach(origineel => {
+        if (isTaakVoorLeerling(origineel, leerling)) {
+            totaal++;
+            let isKlaar = false;
+            const taakNaam = origineel.getAttribute('data-taak-naam');
+            const origNaam = (taakNaam || '').trim().toLowerCase();
+            const sKloon = sBord.find(t => t.attrs && t.attrs['data-kloon-van'] && t.attrs['class'] && t.attrs['class'].includes('klaar') && (t.attrs['data-kloon-van'] === origineel.id || (t.attrs['data-taak-naam'] || '').trim().toLowerCase() === origNaam));
+            if (sKloon) {
+                isKlaar = true;
+            } else {
+                const sTaak = sBord.find(t => t.attrs && (t.attrs.id === origineel.id || (!t.attrs['data-kloon-van'] && (t.attrs['data-taak-naam'] || '').trim().toLowerCase() === origNaam)));
+                if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].split(',').includes(leerling)) {
+                    isKlaar = true;
+                }
+            }
+
+            if (isKlaar) {
+                klaar++;
+                afgerondeNamenLijst.push(taakNaam);
+            } else {
+                nogTeMakenLijst.push(taakNaam);
+            }
+        }
+    });
+
+    sBord.forEach(t => {
+        if (t.attrs && t.attrs['data-is-dispenser-kloon'] === 'true' && parseInt(t.attrs['data-aantal'] || '0') > 0) {
+            afgerondeNamenLijst.push(`${t.attrs['data-aantal']}x ${t.attrs['data-taak-naam']}`);
+        }
+        if (t.attrs && t.attrs['class'] && t.attrs['class'].includes('extra-taak') && t.attrs['class'].includes('klaar')) {
+            afgerondeNamenLijst.push(t.attrs['data-taak-naam'] + ' 🎮');
+        }
+    });
+
+    let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
+    return { totaal, klaar, percentage, afgerondeNamenLijst, nogTeMakenLijst };
 }
 
 function berekenVoortgang() {
@@ -620,56 +918,142 @@ function berekenVoortgang() {
         const overzichtLijst = document.getElementById('overzicht-lijst');
         if (!overzichtLijst) return;
         overzichtLijst.innerHTML = ''; 
-        
-        actieveLeerlingenLijst.forEach(leerling => {
-            let totaal = 0;
-            let klaar = 0;
-            let afgerondeNamenLijst = [];
-            
-            let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
-            
-            alleOriginelen.forEach(origineel => {
-                const doelgroep = origineel.getAttribute('data-leerling');
-                if (doelgroep === 'Iedereen' || doelgroep === leerling) {
-                    totaal++;
-                    let isKlaar = false;
 
-                    const sTaak = sBord.find(t => t.attrs && t.attrs.id === origineel.id);
-                    if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].includes(leerling)) {
-                        isKlaar = true;
-                    } else {
-                        const sKloon = sBord.find(t => t.attrs && t.attrs['data-kloon-van'] === origineel.id && t.attrs['class'] && t.attrs['class'].includes('klaar'));
-                        if (sKloon) isKlaar = true;
-                    }
+        const actieveArchiefId = archiefWeekSelect ? archiefWeekSelect.value : 'huidig';
+        const archiefData = (actieveArchiefId !== 'huidig') ? opgeslagenBorden[huidigeGroep + "_Archief_" + actieveArchiefId] : null;
+        const alleenOpenstaand = filterOpenstaandCheck ? filterOpenstaandCheck.checked : false;
 
-                    if (isKlaar) {
-                        klaar++;
-                        afgerondeNamenLijst.push(origineel.getAttribute('data-taak-naam'));
-                    }
-                }
+        const leerlingenStatussen = actieveLeerlingenLijst.map(leerling => {
+            if (archiefData && archiefData.leerlingen && archiefData.leerlingen[leerling]) {
+                const lData = archiefData.leerlingen[leerling];
+                return {
+                    leerling,
+                    status: {
+                        totaal: lData.totaal || 0,
+                        klaar: lData.klaar || 0,
+                        percentage: lData.percentage || 0,
+                        afgerondeNamenLijst: lData.afgerond || [],
+                        nogTeMakenLijst: lData.nogTeMaken || []
+                    },
+                    customReflecties: lData.reflecties || null,
+                    weekLabel: archiefData.label || ''
+                };
+            }
+            if (archiefData) {
+                return {
+                    leerling,
+                    status: { totaal: 0, klaar: 0, percentage: 0, afgerondeNamenLijst: [], nogTeMakenLijst: [] },
+                    customReflecties: null,
+                    weekLabel: archiefData.label || ''
+                };
+            }
+            return {
+                leerling,
+                status: berekenHuidigeLeerlingStatus(alleOriginelen, leerling),
+                customReflecties: null,
+                weekLabel: ''
+            };
+        });
+
+        let getoondeRijen = 0;
+
+        if (overzichtWeergaveModus === 'taak') {
+            const taakMap = new Map();
+            leerlingenStatussen.forEach(({ leerling, status }) => {
+                status.afgerondeNamenLijst.forEach(naam => {
+                    if (!naam) return;
+                    if (!taakMap.has(naam)) taakMap.set(naam, { klaar: 0, totaal: 0, openLeerlingen: [] });
+                    const item = taakMap.get(naam);
+                    item.klaar++;
+                    item.totaal++;
+                });
+                status.nogTeMakenLijst.forEach(naam => {
+                    if (!naam) return;
+                    if (!taakMap.has(naam)) taakMap.set(naam, { klaar: 0, totaal: 0, openLeerlingen: [] });
+                    const item = taakMap.get(naam);
+                    item.totaal++;
+                    item.openLeerlingen.push(leerling);
+                });
             });
-            
-            sBord.forEach(t => {
-                if (t.attrs && t.attrs['data-is-dispenser-kloon'] === 'true' && parseInt(t.attrs['data-aantal']||'0') > 0) {
-                    afgerondeNamenLijst.push(`${t.attrs['data-aantal']}x ${t.attrs['data-taak-naam']}`);
+
+            taakMap.forEach((info, taakNaam) => {
+                if (alleenOpenstaand && info.openLeerlingen.length === 0) return;
+                getoondeRijen++;
+                const perc = info.totaal === 0 ? 0 : Math.round((info.klaar / info.totaal) * 100);
+                const statusActieHtml = info.openLeerlingen.length > 0
+                    ? `<button type="button" class="openstaand-toggle-knop">📋 ${info.openLeerlingen.length} leerlingen nog ▾</button>`
+                    : `<span class="alles-af-badge">✅ Iedereen af</span>`;
+
+                const rij = document.createElement('div');
+                rij.classList.add('leerling-voortgang-rij');
+                rij.innerHTML = `
+                    <div class="leerling-voortgang-kop">
+                        <span style="color: var(--donkergroen); font-weight: 700;">${taakNaam}</span>
+                        <div class="overzicht-voortgang-cel">
+                            <div class="mini-voortgang-balk"><div class="mini-voortgang-vulling" style="width: ${perc}%;"></div></div>
+                            <span class="overzicht-teller-tekst">${info.klaar} / ${info.totaal} af (${perc}%)</span>
+                        </div>
+                        <div>${statusActieHtml}</div>
+                    </div>
+                    ${info.openLeerlingen.length > 0 ? `<div class="openstaand-paneel"><ul class="openstaand-lijst">${info.openLeerlingen.map(n => `<li>${n}</li>`).join('')}</ul></div>` : ''}
+                `;
+
+                const toggleKnop = rij.querySelector('.openstaand-toggle-knop');
+                const paneel = rij.querySelector('.openstaand-paneel');
+                if (toggleKnop && paneel) {
+                    toggleKnop.addEventListener('click', () => {
+                        paneel.classList.toggle('open');
+                    });
                 }
-                if (t.attrs && t.attrs['class'] && t.attrs['class'].includes('extra-taak') && t.attrs['class'].includes('klaar')) {
-                    afgerondeNamenLijst.push(t.attrs['data-taak-naam'] + ' 🎮');
-                }
+                overzichtLijst.appendChild(rij);
             });
-            
-            let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
-            
+
+            if (getoondeRijen === 0) {
+                overzichtLijst.innerHTML = `<p style="color: var(--donkergroen); font-weight: bold; margin: 10px 0;">🎉 Alle taken zijn door iedereen afgerond!</p>`;
+            }
+            return;
+        }
+
+        leerlingenStatussen.forEach(({ leerling, status, customReflecties, weekLabel }) => {
+            if (alleenOpenstaand && status.nogTeMakenLijst.length === 0) return;
+            getoondeRijen++;
+
+            const statusActieHtml = status.nogTeMakenLijst.length > 0
+                ? `<button type="button" class="openstaand-toggle-knop">📋 ${status.nogTeMakenLijst.length} nog te maken ▾</button>`
+                : (status.totaal > 0 ? `<span class="alles-af-badge">✅ Alles af</span>` : `<span style="color: #888; font-size: 13px;">Geen taken</span>`);
+
             const rij = document.createElement('div');
             rij.classList.add('leerling-voortgang-rij');
-            rij.innerHTML = `<span class="leerling-naam-klikbaar"><strong>${leerling} 🔍</strong></span> <span>${klaar} / ${totaal} af (${percentage}%)</span>`;
-            
+            rij.innerHTML = `
+                <div class="leerling-voortgang-kop">
+                    <span class="leerling-naam-klikbaar"><strong>${leerling} 🔍</strong></span>
+                    <div class="overzicht-voortgang-cel">
+                        <div class="mini-voortgang-balk"><div class="mini-voortgang-vulling" style="width: ${status.percentage}%;"></div></div>
+                        <span class="overzicht-teller-tekst">${status.klaar} / ${status.totaal} af (${status.percentage}%)</span>
+                    </div>
+                    <div>${statusActieHtml}</div>
+                </div>
+                ${status.nogTeMakenLijst.length > 0 ? `<div class="openstaand-paneel"><ul class="openstaand-lijst">${status.nogTeMakenLijst.map(n => `<li>${n}</li>`).join('')}</ul></div>` : ''}
+            `;
+
             rij.querySelector('.leerling-naam-klikbaar').addEventListener('click', () => {
-                openLeerlingModal(leerling, afgerondeNamenLijst);
+                openLeerlingModal(leerling, status.afgerondeNamenLijst, status.nogTeMakenLijst, customReflecties, weekLabel);
             });
+
+            const toggleKnop = rij.querySelector('.openstaand-toggle-knop');
+            const paneel = rij.querySelector('.openstaand-paneel');
+            if (toggleKnop && paneel) {
+                toggleKnop.addEventListener('click', () => {
+                    paneel.classList.toggle('open');
+                });
+            }
 
             overzichtLijst.appendChild(rij);
         });
+
+        if (getoondeRijen === 0) {
+            overzichtLijst.innerHTML = `<p style="color: var(--donkergroen); font-weight: bold; margin: 10px 0;">🎉 Alle leerlingen hebben al hun taken af!</p>`;
+        }
         
     } else {
         let totaal = 0;
@@ -678,18 +1062,18 @@ function berekenVoortgang() {
         let flexibelKlaar = 0;  
         
         alleOriginelen.forEach(origineel => {
-            const doelgroep = origineel.getAttribute('data-leerling');
-            if (doelgroep === 'Iedereen' || doelgroep === huidigeGebruiker) {
+            if (isTaakVoorLeerling(origineel, huidigeGebruiker)) {
                 totaal++;
                 const isVast = origineel.classList.contains('vaste-taak');
                 if (!isVast) flexibelTotaal++;
 
                 let isKlaar = false;
-                let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
-                if (klaarDoor.split(',').includes(huidigeGebruiker)) isKlaar = true;
-                else {
-                    const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${huidigeGebruiker}"]`);
-                    if (kloon && kloon.classList.contains('klaar')) isKlaar = true;
+                const kloon = document.querySelector(`.kloon-taak[data-kloon-van="${origineel.id}"][data-leerling="${huidigeGebruiker}"]`);
+                if (kloon) {
+                    if (kloon.classList.contains('klaar')) isKlaar = true;
+                } else {
+                    let klaarDoor = origineel.getAttribute('data-klaar-door') || '';
+                    if (klaarDoor.split(',').includes(huidigeGebruiker)) isKlaar = true;
                 }
 
                 if (isKlaar) {
@@ -725,17 +1109,22 @@ function berekenVoortgang() {
     }
 }
 
-function openLeerlingModal(leerling, afgerondeNamenLijst) {
+function openLeerlingModal(leerling, afgerondeNamenLijst, nogTeMakenLijst = [], customReflecties = null, weekLabel = '') {
+    let nogTeMakenHtml = nogTeMakenLijst.length > 0
+        ? `<ul class="detail-taken-lijst">` + nogTeMakenLijst.map(n => `<li>${n}</li>`).join('') + `</ul>`
+        : `<p>Alles is af!</p>`;
     let takenHtml = afgerondeNamenLijst.length > 0 ? `<ul class="detail-taken-lijst">` + afgerondeNamenLijst.map(n => `<li>${n}</li>`).join('') + `</ul>` : `<p>Nog geen taken afgerond.</p>`;
     let reflectieHtml = '';
+    const rBron = customReflecties || reflectieData[leerling] || {};
     werkDagen.forEach(dag => {
-        const rData = reflectieData[leerling][dag];
+        const rData = rBron[dag] || { emotie: '', lastig: '', hulp: '', trots: '' };
         if (rData.emotie !== '' || rData.lastig !== '' || rData.trots !== '' || rData.hulp !== '') {
             reflectieHtml += `<div class="detail-dag-reflectie"><strong>${dag} ${rData.emotie}</strong>${rData.lastig ? `<p><em>Lastig:</em> ${rData.lastig}</p>` : ''}${rData.trots ? `<p><em>Trots op:</em> ${rData.trots}</p>` : ''}${rData.hulp ? `<p><em>Hulpvraag:</em> ${rData.hulp}</p>` : ''}</div>`;
         }
     });
     if (reflectieHtml === '') reflectieHtml = `<p>Nog geen reflecties ingevuld.</p>`;
-    modalInhoud.innerHTML = `<h4>Overzicht van ${leerling}</h4><div class="detail-sectie"><h5>✅ Afgeronde taken</h5>${takenHtml}</div><div class="detail-sectie"><h5>📝 Reflecties</h5>${reflectieHtml}</div>`;
+    const titel = weekLabel ? `Overzicht van ${leerling} (${weekLabel})` : `Overzicht van ${leerling}`;
+    modalInhoud.innerHTML = `<h4>${titel}</h4><div class="detail-sectie"><h5>⏳ Nog te maken</h5>${nogTeMakenHtml}</div><div class="detail-sectie"><h5>✅ Afgeronde taken</h5>${takenHtml}</div><div class="detail-sectie"><h5>📝 Reflecties</h5>${reflectieHtml}</div>`;
     leerlingModal.style.display = 'flex';
 }
 
@@ -746,6 +1135,29 @@ function openEditModal(taak) {
     let match = volledigeNaam.match(/^(.*?)(?:\s*\((.*?)\))?$/);
     editNaamInput.value = match[1] ? match[1].trim() : volledigeNaam;
     editOndertitelInput.value = match[2] ? match[2].trim() : '';
+
+    const uitsluitenSectie = document.getElementById('edit-uitsluiten-sectie');
+    const uitsluitenTitel = document.getElementById('edit-uitsluiten-titel');
+    const uitsluitenLijst = document.getElementById('edit-uitsluiten-lijst');
+    if (uitsluitenSectie && uitsluitenLijst) {
+        if (!taak.classList.contains('kloon-taak')) {
+            const isIedereen = (taak.getAttribute('data-leerling') === 'Iedereen');
+            if (uitsluitenTitel) {
+                uitsluitenTitel.innerText = isIedereen
+                    ? 'Leerlingen uitsluiten van deze taak:'
+                    : 'Voor welke leerlingen is deze taak:';
+            }
+            const geselecteerd = isIedereen ? getUitgeslotenLijst(taak) : getDoelgroepLijst(taak);
+            uitsluitenLijst.innerHTML = actieveLeerlingenLijst.map(leerling => {
+                const checked = geselecteerd.includes(leerling) ? 'checked' : '';
+                return `<label><input type="checkbox" class="edit-uitsluiten-check" value="${leerling}" ${checked}> ${leerling}</label>`;
+            }).join('');
+            uitsluitenSectie.style.display = 'block';
+        } else {
+            uitsluitenSectie.style.display = 'none';
+            uitsluitenLijst.innerHTML = '';
+        }
+    }
     
     editTaakModal.style.display = 'flex';
 }
@@ -780,9 +1192,29 @@ if (opslaanEditKnop) {
             }
         }
 
+        if (!actieveEditTaak.classList.contains('kloon-taak')) {
+            const aangevinkt = Array.from(document.querySelectorAll('.edit-uitsluiten-check:checked')).map(cb => cb.value);
+            if (actieveEditTaak.getAttribute('data-leerling') === 'Iedereen') {
+                if (aangevinkt.length > 0) {
+                    actieveEditTaak.setAttribute('data-uitgesloten', aangevinkt.join(','));
+                } else {
+                    actieveEditTaak.removeAttribute('data-uitgesloten');
+                }
+                updateUitgeslotenLabel(actieveEditTaak);
+            } else {
+                if (aangevinkt.length === 0) {
+                    alert("Kies minimaal één leerling.");
+                    return;
+                }
+                actieveEditTaak.setAttribute('data-leerling', aangevinkt.join(','));
+                updateLeerlingDoelgroepWeergave(actieveEditTaak);
+            }
+        }
+
         editTaakModal.style.display = 'none';
         actieveEditTaak = null;
 
+        updateTaakZichtbaarheid();
         berekenVoortgang();
         
         if(handmatigOpslaanKnop) {
@@ -810,7 +1242,7 @@ let activeTouchTaak = null;
 let touchKloon = null;
 
 function handleTouchStart(e) {
-    if (this.getAttribute('draggable') === 'false' || e.target.closest('.teller-knop') || e.target.closest('.docent-only-edit') || e.target.tagName.toLowerCase() === 'button') return;
+    if (this.getAttribute('draggable') === 'false' || (huidigeGebruiker !== 'Docent' && this.classList.contains('vaste-taak')) || e.target.closest('.teller-knop') || e.target.closest('.docent-only-edit') || e.target.tagName.toLowerCase() === 'button') return;
     activeTouchTaak = this;
     gesleepteTaak = this;
     setTimeout(() => this.style.opacity = '0.5', 0);
@@ -855,7 +1287,7 @@ function handleTouchEnd(e) {
             const pDocent = dropTarget.closest('#prullenbak');
             const pLeerling = dropTarget.closest('#leerling-prullenbak');
 
-            if (kolom) verwerkDropActie(kolom);
+            if (kolom) verwerkDropActie(kolom, touch.clientY);
             else if (pDocent) verwerkDocentPrullenbakDrop();
             else if (pLeerling) verwerkLeerlingPrullenbakDrop();
         }
@@ -865,8 +1297,37 @@ function handleTouchEnd(e) {
     gesleepteTaak = null;
 }
 
-function verwerkDropActie(kolom) {
+function getDragAfterElement(kolom, y) {
+    const zichtbareTaken = Array.from(kolom.querySelectorAll(':scope > .taak')).filter(el => {
+        return el !== gesleepteTaak && el.style.display !== 'none';
+    });
+
+    return zichtbareTaken.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        }
+        return closest;
+    }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+}
+
+function verwerkDropActie(kolom, clientY = null) {
     if (!gesleepteTaak) return;
+    if (huidigeGebruiker !== 'Docent' && gesleepteTaak.classList.contains('vaste-taak')) return;
+    if (huidigeGebruiker !== 'Docent' && gesleepteTaak.classList.contains('dispenser-taak') && kolom.id === 'te-doen') return;
+
+    const plaatsInKolom = (element) => {
+        if (typeof clientY === 'number') {
+            const afterElement = getDragAfterElement(kolom, clientY);
+            if (afterElement) {
+                kolom.insertBefore(element, afterElement);
+                return;
+            }
+        }
+        kolom.appendChild(element);
+    };
+
     if (gesleepteTaak.classList.contains('dispenser-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
         const kloon = gesleepteTaak.cloneNode(true);
         kloon.id = 'taak-' + globaleTaakId++;
@@ -878,16 +1339,29 @@ function verwerkDropActie(kolom) {
         tellerDiv.innerHTML = `<button class="teller-knop min">-</button><span class="teller-waarde"><strong>0</strong> x gemaakt</span><button class="teller-knop plus">+</button>`;
         kloon.appendChild(tellerDiv);
         koppelTaakEvents(kloon);
-        kolom.appendChild(kloon); updateTaakZichtbaarheid(); 
+        plaatsInKolom(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); 
     } 
-    else if (huidigeGebruiker !== 'Docent' && gesleepteTaak.getAttribute('data-leerling') === 'Iedereen' && !gesleepteTaak.classList.contains('vaste-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
+    else if (huidigeGebruiker !== 'Docent' && (gesleepteTaak.getAttribute('data-leerling') === 'Iedereen' || (gesleepteTaak.getAttribute('data-leerling') || '').includes(',')) && !gesleepteTaak.classList.contains('vaste-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
         const kloon = gesleepteTaak.cloneNode(true);
-        kloon.id = 'taak-' + globaleTaakId++; kloon.classList.add('kloon-taak'); kloon.setAttribute('data-kloon-van', gesleepteTaak.id); kloon.setAttribute('data-leerling', huidigeGebruiker); kloon.setAttribute('data-groep', huidigeGroep); kloon.style.opacity = '1'; kloon.setAttribute('data-klaar-door', ''); kloon.classList.remove('klaar');
+        kloon.id = 'taak-' + globaleTaakId++; kloon.classList.add('kloon-taak'); kloon.setAttribute('data-kloon-van', gesleepteTaak.id); kloon.setAttribute('data-leerling', huidigeGebruiker); kloon.setAttribute('data-groep', huidigeGroep); kloon.style.opacity = '1';
+
+        const origKlaarLijst = (gesleepteTaak.getAttribute('data-klaar-door') || '').split(',').filter(n => n);
+        if (origKlaarLijst.includes(huidigeGebruiker)) {
+            kloon.setAttribute('data-klaar-door', huidigeGebruiker);
+            kloon.classList.add('klaar');
+            const nieuwOrigKlaar = origKlaarLijst.filter(n => n !== huidigeGebruiker);
+            gesleepteTaak.setAttribute('data-klaar-door', nieuwOrigKlaar.join(','));
+            gesleepteTaak.classList.remove('klaar');
+        } else {
+            kloon.setAttribute('data-klaar-door', '');
+            kloon.classList.remove('klaar');
+        }
+
         koppelTaakEvents(kloon);
-        kolom.appendChild(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); 
+        plaatsInKolom(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); 
     } 
     else {
-        kolom.appendChild(gesleepteTaak); updateTaakZichtbaarheid(); berekenVoortgang(); 
+        plaatsInKolom(gesleepteTaak); updateTaakZichtbaarheid(); berekenVoortgang(); 
     }
 }
 
@@ -915,7 +1389,10 @@ function verwerkLeerlingPrullenbakDrop() {
 
 function maakTaakSleepbaar(taak) {
     taak.addEventListener('dragstart', function(e) {
-        if (taak.getAttribute('draggable') === 'false') return; 
+        if (taak.getAttribute('draggable') === 'false' || (huidigeGebruiker !== 'Docent' && taak.classList.contains('vaste-taak'))) {
+            e.preventDefault();
+            return;
+        }
         gesleepteTaak = taak; setTimeout(() => taak.style.opacity = '0.5', 0); 
     });
     taak.addEventListener('dragend', function() {
@@ -930,9 +1407,9 @@ function maakTaakSleepbaar(taak) {
 document.querySelectorAll('.kolom').forEach(kolom => {
     kolom.addEventListener('dragover', (e) => { e.preventDefault(); kolom.classList.add('drag-over'); });
     kolom.addEventListener('dragleave', () => kolom.classList.remove('drag-over'));
-    kolom.addEventListener('drop', function() {
+    kolom.addEventListener('drop', function(e) {
         kolom.classList.remove('drag-over'); 
-        verwerkDropActie(kolom);
+        verwerkDropActie(kolom, e.clientY);
     });
 });
 
@@ -977,10 +1454,19 @@ function koppelTaakEvents(taak) {
         });
     }
 
+    const dropdownKnop = taak.querySelector('.leerling-dropdown-knop');
+    const dropdownLijst = taak.querySelector('.leerling-dropdown-lijst');
+    if (dropdownKnop && dropdownLijst) {
+        dropdownKnop.onclick = (e) => {
+            e.stopPropagation();
+            dropdownLijst.classList.toggle('open');
+        };
+    }
+
     if (!taak.classList.contains('dispenser-taak')) {
         taak.onclick = function(e) {
             if (huidigeGebruiker === 'Docent') return;
-            if (e.target.closest('.teller-knop') || e.target.closest('.docent-only-edit')) return; 
+            if (e.target.closest('.teller-knop') || e.target.closest('.docent-only-edit') || e.target.closest('.leerling-dropdown-container')) return; 
             let klaarLijst = (taak.getAttribute('data-klaar-door') || '').split(',').filter(n => n);
             if (klaarLijst.includes(huidigeGebruiker)) {
                 klaarLijst = klaarLijst.filter(n => n !== huidigeGebruiker);
@@ -1123,11 +1609,21 @@ function voegNieuweTaakToe() {
     
     if (nieuweTaakTekst !== '') {
         const doelKolom = document.getElementById(taakKolomId);
+        const isIedereenModus = document.getElementById('modus-iedereen').checked;
+        const aangevinkteLeerlingen = Array.from(document.querySelectorAll('.leerling-check:checked')).map(box => box.value);
+
         let gekozenLeerlingen = [];
-        if (document.getElementById('check-iedereen').checked) gekozenLeerlingen.push('Iedereen');
-        else {
-            document.querySelectorAll('.leerling-check').forEach(box => { if (box.checked) gekozenLeerlingen.push(box.value); });
-            if (gekozenLeerlingen.length === 0) gekozenLeerlingen.push('Iedereen');
+        let uitgeslotenLeerlingen = [];
+
+        if (isIedereenModus) {
+            gekozenLeerlingen.push('Iedereen');
+            uitgeslotenLeerlingen = aangevinkteLeerlingen;
+        } else {
+            if (aangevinkteLeerlingen.length === 0) {
+                alert("Kies minimaal één leerling (of kies 'Hele groep').");
+                return;
+            }
+            gekozenLeerlingen = [aangevinkteLeerlingen.join(',')];
         }
 
         gekozenLeerlingen.forEach(leerling => {
@@ -1136,12 +1632,27 @@ function voegNieuweTaakToe() {
             else if (taakType === 'dispenser') nieuweTaak = bouwTaakElement(nieuweTaakTekst, ondertitelTekst, leerling, false, true, huidigeGroep, 'docent');
             else if (taakType === 'klaartaak') nieuweTaak = bouwTaakElement(nieuweTaakTekst, ondertitelTekst, leerling, true, false, huidigeGroep, 'docent');
             else { nieuweTaak = bouwTaakElement(nieuweTaakTekst, ondertitelTekst, leerling, false, false, huidigeGroep, 'docent'); }
+
+            if (leerling === 'Iedereen' && uitgeslotenLeerlingen.length > 0) {
+                nieuweTaak.setAttribute('data-uitgesloten', uitgeslotenLeerlingen.join(','));
+                updateUitgeslotenLabel(nieuweTaak);
+            } else if (leerling !== 'Iedereen') {
+                updateLeerlingDoelgroepWeergave(nieuweTaak);
+            }
+
             doelKolom.appendChild(nieuweTaak);
         });
 
         document.getElementById('nieuwe-taak-input').value = ''; 
         document.getElementById('taak-ondertitel-input').value = ''; 
-        updateTaakZichtbaarheid(); berekenVoortgang(); 
+        document.querySelectorAll('.leerling-check').forEach(box => {
+            box.checked = false;
+            const label = box.closest('.leerling-check-label');
+            if (label) label.classList.remove('uitgesloten');
+        });
+        updateTaakZichtbaarheid();
+        updateKlaarWeergave();
+        berekenVoortgang(); 
     }
 }
 
@@ -1181,13 +1692,181 @@ document.getElementById('wis-bord-knop').addEventListener('click', async () => {
     }
 });
 
+// --- ARCHIEF & VORIGE WEKEN ---
+function vulArchiefWeekSelect() {
+    if (!archiefWeekSelect) return;
+    const huidigeWaarde = archiefWeekSelect.value;
+    archiefWeekSelect.innerHTML = '<option value="huidig">📅 Huidige week</option>';
+    const lijst = opgeslagenBorden[huidigeGroep + "_Archief_Lijst"] || [];
+    if (Array.isArray(lijst)) {
+        lijst.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.innerText = `📁 ${item.label}`;
+            archiefWeekSelect.appendChild(opt);
+        });
+    }
+    if (Array.from(archiefWeekSelect.options).some(o => o.value === huidigeWaarde)) {
+        archiefWeekSelect.value = huidigeWaarde;
+    }
+}
+
+function isTaakDataVoorLeerling(attrs, leerling) {
+    const doelgroep = (attrs && attrs['data-leerling']) || '';
+    if (doelgroep === 'Iedereen') {
+        return !getUitgeslotenLijst(attrs).includes(leerling);
+    }
+    return doelgroep.split(',').map(s => s.trim()).filter(Boolean).includes(leerling);
+}
+
+function bouwWeekSnapshot(customLabel = '') {
+    const nu = new Date();
+    const datumStr = nu.toISOString().split('T')[0];
+    const tijdStr = `${String(nu.getHours()).padStart(2, '0')}-${String(nu.getMinutes()).padStart(2, '0')}`;
+    const id = `${datumStr}_${tijdStr}`;
+    const nlDatum = `${String(nu.getDate()).padStart(2, '0')}-${String(nu.getMonth() + 1).padStart(2, '0')}-${nu.getFullYear()}`;
+    const label = customLabel || `Week van ${nlDatum}`;
+
+    const leerlingenData = {};
+    const liveDocentData = opgeslagenBorden[huidigeGroep + "_Docent"] || [];
+    const domOriginelen = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
+                               .filter(t => t.getAttribute('data-groep') === huidigeGroep);
+
+    actieveLeerlingenLijst.forEach(leerling => {
+        let status;
+        if (!isConceptModus) {
+            status = berekenHuidigeLeerlingStatus(domOriginelen, leerling);
+        } else {
+            let totaal = 0;
+            let klaar = 0;
+            let afgerond = [];
+            let nogTeMaken = [];
+            let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
+
+            liveDocentData.forEach(dTaak => {
+                const attrs = dTaak.attrs || {};
+                const cls = attrs['class'] || '';
+                if (cls.includes('extra-taak') || cls.includes('dispenser-taak') || cls.includes('kloon-taak')) return;
+                if (attrs['data-groep'] !== huidigeGroep) return;
+                if (!isTaakDataVoorLeerling(attrs, leerling)) return;
+
+                totaal++;
+                let isKlaar = false;
+                const taakNaam = attrs['data-taak-naam'] || '';
+                const origNaam = taakNaam.trim().toLowerCase();
+                const sKloon = sBord.find(t => t.attrs && t.attrs['data-kloon-van'] === attrs.id && t.attrs['class'] && t.attrs['class'].includes('klaar'));
+                if (sKloon) {
+                    isKlaar = true;
+                } else {
+                    const sTaak = sBord.find(t => t.attrs && (t.attrs.id === attrs.id || (!t.attrs['data-kloon-van'] && (t.attrs['data-taak-naam'] || '').trim().toLowerCase() === origNaam)));
+                    if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].split(',').includes(leerling)) {
+                        isKlaar = true;
+                    }
+                }
+                if (isKlaar) { klaar++; afgerond.push(taakNaam); }
+                else { nogTeMaken.push(taakNaam); }
+            });
+
+            sBord.forEach(t => {
+                if (t.attrs && t.attrs['data-is-dispenser-kloon'] === 'true' && parseInt(t.attrs['data-aantal'] || '0') > 0) {
+                    afgerond.push(`${t.attrs['data-aantal']}x ${t.attrs['data-taak-naam']}`);
+                }
+                if (t.attrs && t.attrs['class'] && t.attrs['class'].includes('extra-taak') && t.attrs['class'].includes('klaar')) {
+                    afgerond.push(t.attrs['data-taak-naam'] + ' 🎮');
+                }
+            });
+
+            let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
+            status = { totaal, klaar, percentage, afgerondeNamenLijst: afgerond, nogTeMakenLijst: nogTeMaken };
+        }
+
+        const rCopy = {};
+        werkDagen.forEach(dag => {
+            const r = (reflectieData[leerling] && reflectieData[leerling][dag]) ? reflectieData[leerling][dag] : {};
+            rCopy[dag] = { emotie: r.emotie || '', lastig: r.lastig || '', hulp: r.hulp || '', trots: r.trots || '' };
+        });
+
+        leerlingenData[leerling] = {
+            klaar: status.klaar,
+            totaal: status.totaal,
+            percentage: status.percentage,
+            afgerond: status.afgerondeNamenLijst,
+            nogTeMaken: status.nogTeMakenLijst,
+            reflecties: rCopy
+        };
+    });
+
+    return { id, label, datum: datumStr, leerlingen: leerlingenData };
+}
+
+async function archiveerHuidigeWeek(metMelding = false) {
+    if (!huidigeGroep) return;
+    const snapshot = bouwWeekSnapshot();
+    const lijstSleutel = huidigeGroep + "_Archief_Lijst";
+    const itemSleutel = huidigeGroep + "_Archief_" + snapshot.id;
+
+    let lijst = Array.isArray(opgeslagenBorden[lijstSleutel]) ? [...opgeslagenBorden[lijstSleutel]] : [];
+    lijst = lijst.filter(item => item.id !== snapshot.id);
+    lijst.unshift({ id: snapshot.id, label: snapshot.label, datum: snapshot.datum });
+
+    opgeslagenBorden[itemSleutel] = snapshot;
+    opgeslagenBorden[lijstSleutel] = lijst;
+
+    await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: itemSleutel, bord_data: JSON.stringify(snapshot) } });
+    await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: lijstSleutel, bord_data: JSON.stringify(lijst) } });
+
+    vulArchiefWeekSelect();
+    if (metMelding) {
+        alert(`✅ "${snapshot.label}" is opgeslagen in het weekarchief!`);
+    }
+}
+
+if (archiefWeekSelect) {
+    archiefWeekSelect.addEventListener('change', () => {
+        berekenVoortgang();
+    });
+}
+
+if (filterOpenstaandCheck) {
+    filterOpenstaandCheck.addEventListener('change', () => {
+        berekenVoortgang();
+    });
+}
+
+if (weergaveLeerlingKnop && weergaveTaakKnop) {
+    weergaveLeerlingKnop.addEventListener('click', () => {
+        overzichtWeergaveModus = 'leerling';
+        weergaveLeerlingKnop.classList.add('actief');
+        weergaveTaakKnop.classList.remove('actief');
+        berekenVoortgang();
+    });
+    weergaveTaakKnop.addEventListener('click', () => {
+        overzichtWeergaveModus = 'taak';
+        weergaveTaakKnop.classList.add('actief');
+        weergaveLeerlingKnop.classList.remove('actief');
+        berekenVoortgang();
+    });
+}
+
+if (archiveerWeekKnop) {
+    archiveerWeekKnop.addEventListener('click', async () => {
+        if (!confirm("Wil je de huidige weekstand opslaan in het weekarchief zodat je deze later nog kunt terugkijken?")) return;
+        archiveerWeekKnop.innerText = "⏳ Archiveren...";
+        archiveerWeekKnop.style.pointerEvents = "none";
+        await archiveerHuidigeWeek(true);
+        archiveerWeekKnop.innerText = "📸 Week Archiveren";
+        archiveerWeekKnop.style.pointerEvents = "auto";
+    });
+}
+
 // PUBLICEER CONCEPT KNOP (Nieuwe Week Live Zetten)
 if(publiceerConceptKnop) {
     publiceerConceptKnop.addEventListener('click', async () => {
-        if(confirm("🚨 Weet je zeker dat je de Volgende Week live wilt zetten? Dit overschrijft het actuele planbord voor alle leerlingen en wist al hun vinkjes en reflecties van de afgelopen week!")) {
+        if(confirm("🚨 Weet je zeker dat je de Volgende Week live wilt zetten? De huidige week wordt eerst opgeslagen in het archief, en daarna wordt het nieuwe planbord live gezet!")) {
             publiceerConceptKnop.innerText = "Bezig met live zetten... ⏳";
             publiceerConceptKnop.style.pointerEvents = "none";
 
+            await archiveerHuidigeWeek(false);
             await stuurBordNaarGoogle(true); 
 
             for (let i = 0; i < actieveLeerlingenLijst.length; i++) {
@@ -1202,7 +1881,7 @@ if(publiceerConceptKnop) {
                 await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: huidigeGroep + "_" + leerling, bord_data: "[]" }});
             }
 
-            alert("✅ De nieuwe weektaak staat live! Alle oude leerlinggegevens zijn opgeruimd.");
+            alert("✅ De nieuwe weektaak staat live en de vorige week is opgeslagen in het weekarchief!");
             
             bordModusSelect.value = 'huidig';
             bordModusSelect.dispatchEvent(new Event('change'));
@@ -1235,39 +1914,43 @@ if(handmatigOpslaanKnop) {
 const downloadOverzichtKnop = document.getElementById('download-overzicht-knop');
 if(downloadOverzichtKnop) {
     downloadOverzichtKnop.addEventListener('click', () => {
-        let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Ma Emotie;Ma Lastig;Ma Trots;Ma Hulp;Di Emotie;Di Lastig;Di Trots;Di Hulp;Wo Emotie;Wo Lastig;Wo Trots;Wo Hulp;Do Emotie;Do Lastig;Do Trots;Do Hulp;Vr Emotie;Vr Lastig;Vr Trots;Vr Hulp\n";
+        const actieveArchiefId = archiefWeekSelect ? archiefWeekSelect.value : 'huidig';
+        const archiefData = (actieveArchiefId !== 'huidig') ? opgeslagenBorden[huidigeGroep + "_Archief_" + actieveArchiefId] : null;
+        let csv = "Leerling;Taken Af;Totaal Taken;Percentage;Nog te maken;Ma Emotie;Ma Lastig;Ma Trots;Ma Hulp;Di Emotie;Di Lastig;Di Trots;Di Hulp;Wo Emotie;Wo Lastig;Wo Trots;Wo Hulp;Do Emotie;Do Lastig;Do Trots;Do Hulp;Vr Emotie;Vr Lastig;Vr Trots;Vr Hulp\n";
 
         const baseTasks = Array.from(document.querySelectorAll('.taak:not(.extra-taak):not(.dispenser-taak):not(.kloon-taak)'))
                                     .filter(t => t.getAttribute('data-groep') === huidigeGroep);
 
         actieveLeerlingenLijst.forEach(leerling => {
-            let totaal = 0;
-            let klaar = 0;
-            let sBord = opgeslagenBorden[huidigeGroep + "_" + leerling] || [];
-            
-            baseTasks.forEach(origineel => {
-                const doelgroep = origineel.getAttribute('data-leerling');
-                if (doelgroep === 'Iedereen' || doelgroep === leerling) {
-                    totaal++;
-                    let isKlaar = false;
+            let status;
+            let rBron;
+            if (archiefData && archiefData.leerlingen && archiefData.leerlingen[leerling]) {
+                const lData = archiefData.leerlingen[leerling];
+                status = {
+                    klaar: lData.klaar || 0,
+                    totaal: lData.totaal || 0,
+                    percentage: lData.percentage || 0,
+                    nogTeMakenLijst: lData.nogTeMaken || []
+                };
+                rBron = lData.reflecties || {};
+            } else if (archiefData) {
+                status = { klaar: 0, totaal: 0, percentage: 0, nogTeMakenLijst: [] };
+                rBron = {};
+            } else {
+                status = berekenHuidigeLeerlingStatus(baseTasks, leerling);
+                rBron = reflectieData[leerling] || {};
+            }
 
-                    const sTaak = sBord.find(t => t.attrs && t.attrs.id === origineel.id);
-                    if (sTaak && sTaak.attrs['data-klaar-door'] && sTaak.attrs['data-klaar-door'].includes(leerling)) {
-                        isKlaar = true;
-                    } else {
-                        const sKloon = sBord.find(t => t.attrs && t.attrs['data-kloon-van'] === origineel.id && t.attrs['class'].includes('klaar'));
-                        if (sKloon) isKlaar = true;
-                    }
-
-                    if (isKlaar) klaar++;
-                }
-            });
-            let percentage = totaal === 0 ? 0 : Math.round((klaar / totaal) * 100);
-
-            let row = [leerling, klaar, totaal, percentage + "%"];
+            let row = [
+                leerling,
+                status.klaar,
+                status.totaal,
+                status.percentage + "%",
+                escapeCSV(status.nogTeMakenLijst.join(', '))
+            ];
             
             werkDagen.forEach(dag => {
-                const rData = reflectieData[leerling] && reflectieData[leerling][dag] ? reflectieData[leerling][dag] : {emotie: '', lastig: '', hulp: '', trots: ''};
+                const rData = rBron[dag] ? rBron[dag] : {emotie: '', lastig: '', hulp: '', trots: ''};
                 row.push(escapeCSV(rData.emotie));
                 row.push(escapeCSV(rData.lastig));
                 row.push(escapeCSV(rData.trots));
@@ -1281,7 +1964,7 @@ if(downloadOverzichtKnop) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        let datumVandaag = new Date().toISOString().split('T')[0];
+        let datumVandaag = archiefData ? archiefData.datum : new Date().toISOString().split('T')[0];
         link.setAttribute("download", `Weekoverzicht_${huidigeGroep}_${datumVandaag}.csv`);
         document.body.appendChild(link);
         link.click();
