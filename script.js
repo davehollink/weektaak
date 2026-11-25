@@ -284,21 +284,24 @@ window.addEventListener('DOMContentLoaded', () => {
 
 async function haalDataUitGoogle(sheetNaam) {
     try {
-        const response = await fetch(`${GOOGLE_SCRIPT_URL}?sheet=${sheetNaam}`);
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?sheet=${sheetNaam}&t=${Date.now()}`, { cache: 'no-store' });
         if (!response.ok) return null; 
         return await response.json();
     } catch (error) { return null; }
 }
 
-async function stuurDataNaarGoogle(payload) {
+async function stuurDataNaarGoogle(payload, useKeepalive = false) {
     try {
-        await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            keepalive: useKeepalive,
+            body: JSON.stringify(payload)
+        });
     } catch (error) { console.error("Opslaan mislukt:", error); }
 }
 
-async function stuurBordNaarGoogle(forceerDocentLive = false) {
-    if (!huidigeGroep || !huidigeGebruiker) return;
-    
+function verzamelHuidigeTakenData(forceerDocentLive = false) {
     const takenData = [];
     document.querySelectorAll(`.taak[data-groep="${huidigeGroep}"]`).forEach(taak => {
         let attrObj = {};
@@ -307,7 +310,7 @@ async function stuurBordNaarGoogle(forceerDocentLive = false) {
                 attrObj[attr.name] = attr.value;
             }
         });
-        
+
         if (huidigeGebruiker === "Docent" && forceerDocentLive) {
             if(attrObj['class']) attrObj['class'] = attrObj['class'].replace('klaar', '').trim();
             attrObj['data-klaar-door'] = '';
@@ -315,6 +318,86 @@ async function stuurBordNaarGoogle(forceerDocentLive = false) {
 
         takenData.push({ kolom: taak.parentElement.id, html: taak.innerHTML, attrs: attrObj });
     });
+    return takenData;
+}
+
+function getLokaalBackupSleutel() {
+    return `weektaak_backup_${huidigeGroep}_${huidigeGebruiker}`;
+}
+
+function slaLokaalBackupOp(takenData, pending = true) {
+    if (!huidigeGroep || !huidigeGebruiker || huidigeGebruiker === 'Docent') return;
+    try {
+        localStorage.setItem(getLokaalBackupSleutel(), JSON.stringify({
+            pending: pending,
+            updatedAt: Date.now(),
+            data: takenData
+        }));
+    } catch (e) {}
+}
+
+function laadLokaalBackup() {
+    if (!huidigeGroep || !huidigeGebruiker || huidigeGebruiker === 'Docent') return null;
+    try {
+        const raw = localStorage.getItem(getLokaalBackupSleutel());
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function wisLokaalBackup() {
+    if (!huidigeGroep || !huidigeGebruiker || huidigeGebruiker === 'Docent') return;
+    try { localStorage.removeItem(getLokaalBackupSleutel()); } catch (e) {}
+}
+
+let autoOpslaanTimer = null;
+function planAutoOpslaan() {
+    if (!huidigeGroep || !huidigeGebruiker || huidigeGebruiker === 'Docent') return;
+    const takenData = verzamelHuidigeTakenData(false);
+    slaLokaalBackupOp(takenData, true);
+
+    if (autoOpslaanTimer) clearTimeout(autoOpslaanTimer);
+    if (handmatigOpslaanKnop) {
+        handmatigOpslaanKnop.innerText = "⏳ Wordt opgeslagen...";
+        handmatigOpslaanKnop.style.opacity = "0.8";
+    }
+    const vertraging = 3500 + Math.floor(Math.random() * 1500);
+    autoOpslaanTimer = setTimeout(async () => {
+        autoOpslaanTimer = null;
+        await stuurBordNaarGoogle();
+        if (handmatigOpslaanKnop) {
+            handmatigOpslaanKnop.innerText = "✅ Opgeslagen!";
+            handmatigOpslaanKnop.style.opacity = "1";
+            setTimeout(() => {
+                if (!autoOpslaanTimer) handmatigOpslaanKnop.innerText = "💾 Opslaan";
+            }, 2000);
+        }
+    }, vertraging);
+}
+
+function flushAutoOpslaanBijSluiten() {
+    if (!autoOpslaanTimer || !huidigeGroep || !huidigeGebruiker || huidigeGebruiker === 'Docent') return;
+    clearTimeout(autoOpslaanTimer);
+    autoOpslaanTimer = null;
+    const takenData = verzamelHuidigeTakenData(false);
+    slaLokaalBackupOp(takenData, true);
+    const opslagSleutel = huidigeGroep + "_" + huidigeGebruiker;
+    const body = JSON.stringify({ sheet: 'taken', row: { groep: opslagSleutel, bord_data: JSON.stringify(takenData) } });
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon(GOOGLE_SCRIPT_URL, new Blob([body], { type: 'text/plain;charset=UTF-8' }));
+    } else {
+        stuurDataNaarGoogle(JSON.parse(body), true);
+    }
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushAutoOpslaanBijSluiten();
+});
+window.addEventListener('beforeunload', flushAutoOpslaanBijSluiten);
+
+async function stuurBordNaarGoogle(forceerDocentLive = false) {
+    if (!huidigeGroep || !huidigeGebruiker) return;
+    
+    const takenData = verzamelHuidigeTakenData(forceerDocentLive);
     
     let opslagSleutel = huidigeGroep + "_" + huidigeGebruiker;
     
@@ -328,6 +411,9 @@ async function stuurBordNaarGoogle(forceerDocentLive = false) {
 
     await stuurDataNaarGoogle({ sheet: 'taken', row: { groep: opslagSleutel, bord_data: JSON.stringify(takenData) } });
     opgeslagenBorden[opslagSleutel] = takenData;
+    if (huidigeGebruiker !== "Docent") {
+        slaLokaalBackupOp(takenData, false);
+    }
 }
 
 function initLokaal() {
@@ -583,11 +669,21 @@ async function voerSuccesvolleLoginUit() {
 
         let docentData = opgeslagenBorden[huidigeGroep + "_Docent"] || [];
         let studentData = opgeslagenBorden[huidigeGroep + "_" + huidigeGebruiker];
+        const lokaalBackup = laadLokaalBackup();
+        let gebruikLokaalBackup = false;
+
+        if (Array.isArray(studentData) && studentData.length === 0) {
+            wisLokaalBackup();
+        } else if (lokaalBackup && lokaalBackup.pending && Array.isArray(lokaalBackup.data) && lokaalBackup.data.length > 0) {
+            studentData = lokaalBackup.data;
+            gebruikLokaalBackup = true;
+        }
 
         if (!studentData || studentData.length === 0) {
             laadBordVanafData(docentData);
         } else {
             laadBordVanafData(studentData);
+            if (gebruikLokaalBackup) planAutoOpslaan();
             
             let actueleDocentNamen = [];
             let bordAangepast = false;
@@ -672,7 +768,18 @@ async function voerSuccesvolleLoginUit() {
 
             document.querySelectorAll('.kloon-taak[data-kloon-van]').forEach(kloon => {
                 const bronId = kloon.getAttribute('data-kloon-van');
-                const bronTaak = bronId ? document.getElementById(bronId) : null;
+                let bronTaak = bronId ? document.getElementById(bronId) : null;
+                if (!bronTaak) {
+                    const kNaam = (kloon.getAttribute('data-taak-naam') || '').trim().toLowerCase();
+                    bronTaak = Array.from(document.querySelectorAll('.taak:not(.kloon-taak)')).find(t =>
+                        t.getAttribute('data-groep') === huidigeGroep &&
+                        (t.getAttribute('data-taak-naam') || '').trim().toLowerCase() === kNaam
+                    ) || null;
+                    if (bronTaak) {
+                        kloon.setAttribute('data-kloon-van', bronTaak.id);
+                        bordAangepast = true;
+                    }
+                }
                 if (!bronTaak || !isTaakVoorLeerling(bronTaak, huidigeGebruiker)) {
                     kloon.remove();
                     bordAangepast = true;
@@ -1339,7 +1446,7 @@ function verwerkDropActie(kolom, clientY = null) {
         tellerDiv.innerHTML = `<button class="teller-knop min">-</button><span class="teller-waarde"><strong>0</strong> x gemaakt</span><button class="teller-knop plus">+</button>`;
         kloon.appendChild(tellerDiv);
         koppelTaakEvents(kloon);
-        plaatsInKolom(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); 
+        plaatsInKolom(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); planAutoOpslaan(); 
     } 
     else if (huidigeGebruiker !== 'Docent' && (gesleepteTaak.getAttribute('data-leerling') === 'Iedereen' || (gesleepteTaak.getAttribute('data-leerling') || '').includes(',')) && !gesleepteTaak.classList.contains('vaste-taak') && kolom.id !== 'te-doen' && kolom.id !== 'prullenbak' && kolom.id !== 'leerling-prullenbak') {
         const kloon = gesleepteTaak.cloneNode(true);
@@ -1358,10 +1465,10 @@ function verwerkDropActie(kolom, clientY = null) {
         }
 
         koppelTaakEvents(kloon);
-        plaatsInKolom(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); 
+        plaatsInKolom(kloon); updateTaakZichtbaarheid(); berekenVoortgang(); planAutoOpslaan(); 
     } 
     else {
-        plaatsInKolom(gesleepteTaak); updateTaakZichtbaarheid(); berekenVoortgang(); 
+        plaatsInKolom(gesleepteTaak); updateTaakZichtbaarheid(); berekenVoortgang(); planAutoOpslaan(); 
     }
 }
 
@@ -1380,9 +1487,9 @@ function verwerkLeerlingPrullenbakDrop() {
                 gesleepteTaak.setAttribute('data-klaar-door', klaarLijst.join(',')); gesleepteTaak.classList.remove('klaar');
                 document.getElementById('klaartaken-lijst').appendChild(gesleepteTaak); 
             }
-            berekenVoortgang(); return;
+            berekenVoortgang(); planAutoOpslaan(); return;
         }
-        if (gesleepteTaak.classList.contains('kloon-taak')) { gesleepteTaak.remove(); updateTaakZichtbaarheid(); berekenVoortgang(); return; }
+        if (gesleepteTaak.classList.contains('kloon-taak')) { gesleepteTaak.remove(); updateTaakZichtbaarheid(); berekenVoortgang(); planAutoOpslaan(); return; }
         alert("Je mag alleen je klaartaken of eigen oefensoftware verwijderen.");
     }
 }
@@ -1477,6 +1584,7 @@ function koppelTaakEvents(taak) {
             }
             taak.setAttribute('data-klaar-door', klaarLijst.join(','));
             berekenVoortgang();
+            planAutoOpslaan();
         };
     }
 
@@ -1491,6 +1599,7 @@ function koppelTaakEvents(taak) {
                 let aantal = parseInt(taak.getAttribute('data-aantal') || '0', 10);
                 aantal++; waardeSpan.innerText = aantal; taak.setAttribute('data-aantal', aantal);
                 berekenVoortgang();
+                planAutoOpslaan();
             };
             minBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -1499,6 +1608,7 @@ function koppelTaakEvents(taak) {
                 if (aantal > 0) aantal--;
                 waardeSpan.innerText = aantal; taak.setAttribute('data-aantal', aantal);
                 berekenVoortgang(); 
+                planAutoOpslaan();
             };
         }
     }
@@ -1594,6 +1704,7 @@ document.getElementById('voeg-eigen-klaartaak-toe').addEventListener('click', ()
     if(invoerVeld.value.trim() !== '') {
         document.getElementById('klaartaken-lijst').appendChild(bouwTaakElement(invoerVeld.value.trim(), '', huidigeGebruiker, true, false, huidigeGroep, 'leerling'));
         invoerVeld.value = ''; 
+        planAutoOpslaan();
     }
 });
 
@@ -1895,6 +2006,10 @@ if(publiceerConceptKnop) {
 // --- HANDMATIGE OPSLAAN KNOP ---
 if(handmatigOpslaanKnop) {
     handmatigOpslaanKnop.addEventListener('click', async () => {
+        if (autoOpslaanTimer) {
+            clearTimeout(autoOpslaanTimer);
+            autoOpslaanTimer = null;
+        }
         handmatigOpslaanKnop.innerText = "⏳ Opslaan...";
         handmatigOpslaanKnop.style.opacity = "0.7";
         handmatigOpslaanKnop.style.pointerEvents = "none";
